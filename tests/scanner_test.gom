@@ -1,0 +1,92 @@
+package tests;
+
+use ecosystem::parser::scanner;
+use std::testing;
+
+fn next_token(value: scanner::Scanner) -> scanner::Token {
+    testing::expect_some(testing::expect_ok(value.next(), "scanner token"), "scanner token")
+}
+
+#[test]
+fn scanner_tracks_unicode_positions_and_token_kinds() -> () {
+    let value = testing::expect_ok(scanner::Scanner::new(" αβ ٣٢\r\n'x\\'y' +", 16), "scanner");
+    let identifier = next_token(value);
+    testing::assert_eq(identifier.kind, scanner::Kind::Identifier);
+    testing::assert_eq(identifier.text, "αβ");
+    testing::assert_eq(identifier.start.offset, 1);
+    testing::assert_eq(identifier.end.offset, 5);
+    testing::assert_eq(identifier.end.column, 4);
+    let number = next_token(value);
+    testing::assert_eq(number.kind, scanner::Kind::Number);
+    testing::assert_eq(number.text, "٣٢");
+    let quoted = next_token(value);
+    testing::assert_eq(quoted.text, "'x\\'y'");
+    testing::assert_eq(quoted.start.line, 2);
+    testing::assert_eq(quoted.start.column, 1);
+    testing::assert_eq(next_token(value).text, "+");
+    testing::assert(testing::expect_ok(value.next(), "end").is_none());
+    testing::assert(testing::expect_ok(value.next(), "repeat end").is_none());
+}
+
+#[test]
+fn scanner_comments_whitespace_and_aliases() -> () {
+    let options = scanner::Options {
+        max_token_bytes: 32,
+        emit_whitespace: true,
+        line_comments: true,
+        block_comments: true,
+        emit_comments: true,
+    };
+    let value = testing::expect_ok(
+        scanner::Scanner::with_options("a /* x\ny */ // hi\nb", options),
+        "scanner",
+    );
+    let alias = value;
+    testing::assert_eq(next_token(value).text, "a");
+    testing::assert_eq(next_token(alias).kind, scanner::Kind::Whitespace);
+    let block = next_token(value);
+    testing::assert_eq(block.kind, scanner::Kind::Comment);
+    testing::assert_eq(block.text, "/* x\ny */");
+    testing::assert_eq(block.end.line, 2);
+    testing::assert_eq(next_token(value).kind, scanner::Kind::Whitespace);
+    testing::assert_eq(next_token(value).text, "// hi");
+    testing::assert_eq(next_token(value).text, "\n");
+    testing::assert_eq(next_token(value).text, "b");
+    testing::assert(testing::expect_ok(value.next(), "end").is_none());
+}
+
+#[test]
+fn scanner_limits_and_failures_are_sticky() -> () {
+    testing::assert_err(scanner::Scanner::new("", 0));
+    let value = testing::expect_ok(scanner::Scanner::new("abcdef", 3), "limited scanner");
+    let first = testing::expect_err(value.next(), "limit");
+    testing::assert_eq(first.kind, scanner::ErrorKind::Limit);
+    testing::assert_eq(first.position.offset, 0);
+    testing::assert_eq(testing::expect_err(value.next(), "sticky limit"), first);
+    testing::assert_eq(testing::expect_some(value.failure(), "failure"), first);
+    let whitespace = testing::expect_ok(scanner::Scanner::new("    x", 3), "skipped limit");
+    testing::assert_eq(
+        testing::expect_err(whitespace.next(), "whitespace limit").kind,
+        scanner::ErrorKind::Limit,
+    );
+    let quoted = testing::expect_ok(scanner::Scanner::new("'broken", 20), "quoted scanner");
+    testing::assert_eq(
+        testing::expect_err(quoted.next(), "unterminated").kind,
+        scanner::ErrorKind::Unterminated,
+    );
+    let comment_options = scanner::Options {
+        max_token_bytes: 20,
+        emit_whitespace: false,
+        line_comments: false,
+        block_comments: true,
+        emit_comments: false,
+    };
+    let comment = testing::expect_ok(
+        scanner::Scanner::with_options("/* broken", comment_options),
+        "comment scanner",
+    );
+    testing::assert_eq(
+        testing::expect_err(comment.next(), "unterminated comment").kind,
+        scanner::ErrorKind::Unterminated,
+    );
+}
