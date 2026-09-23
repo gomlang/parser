@@ -108,6 +108,29 @@ propagates unchanged through alternatives, optional parsing and lookahead so a
 short transport read cannot prematurely select a different branch. `cut` and
 `attempt` affect invalid errors, preserving the needed-byte count on truncation.
 
+## Text scanner
+
+Import `ecosystem::parser::scanner` for an independent pull scanner over a UTF-8
+string. `Scanner::new(input, max_token_bytes)` requires a positive byte limit and
+returns identifier, decimal-digit, quoted and single-scalar punctuation tokens.
+Identifiers use Unicode letters and numbers with `_`; decimal digits form number
+tokens. Single- and double-quoted tokens retain their original spelling, including
+escapes. The scanner checks for a closing quote and rejects a newline or truncated
+escape, leaving language-specific escape interpretation to the caller.
+
+Each token contains its source slice and start/end byte offset, one-based line and
+one-based scalar column. LF advances the line; CR is a separate whitespace scalar.
+`Options` controls whitespace emission and optional `//` and `/* */` comments.
+Comments are skipped by default when enabled, or returned intact. Skipped runs
+still obey the token byte limit. Invalid options, excessive tokens and unterminated
+quotes/comments return recoverable errors. Failure is sticky; repeated calls do
+not scan further. Scanner copies share cursor and failure state and require
+serialized access. EOF returns `Ok(None)` repeatedly.
+
+This scanner is a small reusable lexical layer. Numeric grammar, comment policy
+and literal decoding belong to each consuming language or format; Go-specific
+token rules remain in gomlgo.
+
 ## Validation
 
 ```sh
