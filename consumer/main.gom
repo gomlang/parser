@@ -1,0 +1,28 @@
+package main;
+
+use ecosystem::parser::arithmetic;
+use ecosystem::parser::scanner;
+use std::testing;
+
+fn main() -> () {
+    testing::assert_eq(
+        testing::expect_ok(arithmetic::expression().parse("6 * (3 + 4)"), "expression"),
+        42,
+    );
+    let source = testing::expect_ok(scanner::Scanner::new("value = 42", 16), "scanner");
+    let first = testing::expect_some(testing::expect_ok(source.next(), "identifier"), "identifier");
+    testing::assert_eq(first.kind, scanner::Kind::Identifier);
+    testing::assert_eq(first.text, "value");
+    testing::assert_eq(first.start.offset, 0);
+    testing::assert_eq(first.end.offset, 5);
+    testing::assert_eq(
+        testing::expect_some(testing::expect_ok(source.next(), "equals"), "equals").text,
+        "=",
+    );
+    testing::assert_eq(
+        testing::expect_some(testing::expect_ok(source.next(), "number"), "number").text,
+        "42",
+    );
+    testing::assert(testing::expect_ok(source.next(), "end").is_none());
+    println("parser consumer: ok")
+}
