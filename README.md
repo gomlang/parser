@@ -134,7 +134,7 @@ token rules remain in gomlgo.
 ## Validation
 
 ```sh
-just ecosystem-test parser
+(cd ../verification && just ecosystem-test parser)
 ```
 
 The module tests cover precedence, commitment, backtracking, invalid ranges,
