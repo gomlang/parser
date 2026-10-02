@@ -200,6 +200,59 @@ impl[T] Parser[T] {
         )
     }
 
+    pub fn many_until[U](self: Parser[T], terminator: Parser[U]) -> Parser[(Vec[T], U)] {
+        Parser::with_context(
+            |context, input, offset| {
+                let values: Vec[T] = Vec::new();
+                let mut next = offset;
+                loop {
+                    let boundary_error = match terminator.parse_in(context, input, next) {
+                        Ok((end, after)) => return Result::Ok(((values, end), after)),
+                        Err(problem) => {
+                            if problem.committed {
+                                return Result::Err(problem)
+                            }
+                            problem
+                        },
+                    };
+                    match self.parse_in(context, input, next) {
+                        Ok((value, after)) => {
+                            if after == next {
+                                return Result::Err(
+                                    Error {
+                                        offset: next,
+                                        expected: "repetition must consume input",
+                                        committed: true,
+                                    },
+                                )
+                            }
+                            values.push(value);
+                            next = after;
+                        },
+                        Err(problem) => {
+                            if problem.committed || problem.offset > boundary_error.offset {
+                                return Result::Err(problem)
+                            }
+                            if boundary_error.offset > problem.offset {
+                                return Result::Err(boundary_error)
+                            }
+                            context.charge(
+                                boundary_error.expected.byte_len() + problem.expected.byte_len(),
+                                next,
+                            )?;
+                            return Result::Err(
+                                error(
+                                    problem.offset,
+                                    boundary_error.expected + " or " + problem.expected,
+                                ),
+                            )
+                        },
+                    }
+                }
+            },
+        )
+    }
+
     pub fn many1(self: Parser[T]) -> Parser[Vec[T]] {
         self.then(self.many()).map(
             |pair| {

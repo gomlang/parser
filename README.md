@@ -59,7 +59,7 @@ outer limit. These budgets bound library work, not wall time or exact heap size.
 | Transformation | `map`, `try_map`, `and_then`, `verify` |
 | Sequencing | `then`, `left`, `right`, `between` |
 | Alternatives | `or`, `choice`, `optional`, `pure`, `fail`, `lazy` |
-| Repetition | `many`, `many1`, `repeat(minimum, maximum)`, `separated(separator, minimum, trailing)` |
+| Repetition | `many`, `many1`, `many_until(terminator)`, `repeat(minimum, maximum)`, `separated(separator, minimum, trailing)` |
 | Observation | `peek`, `not`, `position`, `end`, `spanned`, `recognize` |
 | Errors | `cut`, `attempt`, `label`, `context`, `Error::render` |
 | Recovery | `recover`, `recover_many`, `Recovery`, `Report[T]`, `collect_recovered` |
@@ -71,7 +71,17 @@ outer limit. These budgets bound library work, not wall time or exact heap size.
 furthest error and combines expectations on a tie. `attempt` clears commitment.
 `between` commits after its opening delimiter. Repetitions reject successful
 zero-width iterations instead of looping forever. Lists explicitly choose
-whether a trailing separator is accepted. `peek` retains input; `not` preserves
+whether a trailing separator is accepted. `item.many_until(terminator)` returns `(items, ending)`, checking the terminator
+before every item and consuming it on success. This parses sentinel-delimited
+text even when the item could consume the sentinel's prefix. Use a peeked
+terminator to retain it, or `end()` to require EOF. Zero items and zero-width
+terminators are allowed; successful items must advance. A committed error from
+either parser propagates; otherwise a failed item reports the furthest item or
+terminator error and combines tied expectations. Both parsers share the original
+work/depth budget, including failed terminator probes. Missing terminators fail
+rather than returning a partial list.
+
+`peek` retains input; `not` preserves
 committed errors. Error offsets and spans use bytes; rendered columns count
 Unicode scalar values, not terminal display cells or UTF-16 units.
 
