@@ -83,3 +83,11 @@ fn downstream_sentinel_records_stop_before_eof() -> () {
     testing::assert_eq(ending, "END");
     testing::assert_eq(rest, "tail");
 }
+
+#[test]
+fn downstream_literal_delimited_payload() -> () {
+    let payload = parser::literal("<").right(
+        parser::take_until("END>").left(parser::literal("END>")),
+    );
+    testing::assert_eq(testing::expect_ok(payload.parse("<你好ENEND>"), "payload"), "你好EN");
+}

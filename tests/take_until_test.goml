@@ -1,0 +1,50 @@
+package tests;
+
+use ecosystem::parser;
+use std::testing;
+
+#[test]
+fn literal_scans_preserve_delimiters_and_unicode_offsets() -> () {
+    let scanned = parser::take_until("😀é");
+    testing::assert(
+        testing::expect_ok(scanned.parse_prefix("中😀érest"), "prefix") == ("中", "😀érest"),
+    );
+    testing::assert(testing::expect_ok(scanned.parse_at("a中😀é", 1), "offset") == ("中", 4));
+    testing::assert(testing::expect_ok(scanned.parse_prefix("😀é"), "empty") == ("", "😀é"));
+    testing::assert_err(scanned.parse_at("中😀é", 1));
+    testing::assert_err(parser::take_until("").parse(""));
+    testing::assert_eq(testing::expect_err(scanned.parse("中😀"), "missing").offset, 7);
+    testing::assert_eq(
+        testing::expect_ok(
+            parser::take_until("ababac").left(parser::literal("ababac")).parse("ababababac"),
+            "overlap",
+        ),
+        "abab",
+    );
+}
+
+#[test]
+fn repeated_delimiter_prefixes_have_linear_charged_work() -> () {
+    let marker = "a".repeat(1024) + "b";
+    let input = "a".repeat(10000) + "b";
+    let scanned = parser::take_until(marker).left(parser::literal(marker));
+    testing::assert_eq(
+        testing::expect_ok(
+            scanned.parse_with_limits(input, parser::ParseLimits { max_depth: 10, max_work: 30000 }),
+            "linear scan",
+        ).byte_len(),
+        8976,
+    );
+    testing::assert_err(
+        scanned.attempt().optional().parse_with_limits(
+            input,
+            parser::ParseLimits { max_depth: 10, max_work: 10 },
+        ),
+    );
+    testing::assert_err(
+        parser::take_until(marker).parse_with_limits(
+            "",
+            parser::ParseLimits { max_depth: 10, max_work: 100 },
+        ),
+    );
+}
