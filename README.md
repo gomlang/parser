@@ -64,7 +64,7 @@ outer limit. These budgets bound library work, not wall time or exact heap size.
 | Errors | `cut`, `attempt`, `label`, `context`, `Error::render` |
 | Recovery | `recover`, `recover_many`, `Recovery`, `Report[T]`, `collect_recovered` |
 | Operators | `chain_left`, `chain_right` |
-| Text primitives | `literal`, `take_while`, `satisfy`, `character`, `any_char`, `one_of`, `none_of` |
+| Text primitives | `literal`, `take_while`, `take_until`, `satisfy`, `character`, `any_char`, `one_of`, `none_of` |
 | Lexical helpers | `whitespace`, `token`, `digits`, `integer`, `decimal`, `identifier`, `quoted`, `line_ending`, `rest_of_line` |
 
 `or` backtracks unless the failed branch is committed with `cut`. It reports the
@@ -91,6 +91,14 @@ digits with machine-range checks. `decimal` additionally accepts a fractional
 part and exponent; a decimal point or exponent marker requires following digits.
 `quoted` supports the selected quote and `\\`, `\n`, `\r`, `\t` escapes.
 `take_while` uses byte predicates and rejects an ending inside a UTF-8 scalar.
+`take_until(marker)` returns the text before the first literal marker and retains
+the marker for a following parser. Empty markers are invalid; absence fails at
+EOF. An immediate marker produces an empty string. A prefix table avoids repeated
+rescanning of overlapping delimiters: work is O(input scanned + marker bytes),
+with O(marker bytes) scratch space. Table allocation and comparisons share the
+parse work budget, including failures; limits remain sticky through backtracking.
+Use `.left(literal(marker))` to consume the delimiter as well. The byte search
+preserves UTF-8 boundaries and allocates no vector of parsed characters.
 
 `arithmetic::expression()` demonstrates recursive parentheses, multiplication,
 addition and subtraction with precedence. `lazy` supports productive recursive

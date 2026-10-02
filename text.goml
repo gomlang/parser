@@ -106,3 +106,49 @@ pub fn quoted(quote: char) -> Parser[string] {
         },
     )
 }
+
+pub fn take_until(marker: string) -> Parser[string] {
+    Parser::with_context(
+        |context, input: string, offset| {
+            if marker == "" {
+                return Result::Err(error(offset, "nonempty delimiter"))
+            }
+            context.charge(marker.byte_len(), offset)?;
+            let prefixes: Vec[isize] = Vec::with_capacity(marker.byte_len());
+            prefixes.push(0);
+            for index in 1..marker.byte_len() {
+                let mut matched = prefixes[index - 1];
+                loop {
+                    context.charge(1, offset)?;
+                    if marker.byte_get(index) == marker.byte_get(matched) {
+                        matched += 1;
+                        break
+                    }
+                    if matched == 0 {
+                        break
+                    }
+                    matched = prefixes[matched - 1];
+                }
+                prefixes.push(matched);
+            }
+            let mut matched = 0;
+            let mut index = offset;
+            while index < input.byte_len() {
+                context.charge(1, index)?;
+                if input.byte_get(index) == marker.byte_get(matched) {
+                    matched += 1;
+                    index += 1;
+                    if matched == marker.byte_len() {
+                        let end = index - marker.byte_len();
+                        return Result::Ok((input.byte_slice(offset, end), end))
+                    }
+                } else if matched > 0 {
+                    matched = prefixes[matched - 1];
+                } else {
+                    index += 1;
+                }
+            }
+            Result::Err(error(input.byte_len(), marker))
+        },
+    )
+}
