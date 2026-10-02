@@ -139,7 +139,19 @@ token rules remain in gomlgo.
 
 The module tests cover precedence, commitment, backtracking, invalid ranges,
 zero-width repetitions, Unicode spans, errors, malformed numbers and every prefix
-of a binary frame. The separate consumer uses `ecosystem::proptest` to check
-integer and list roundtrips through registry-resolved dependencies.
+of a binary frame. The example uses the `ecosystem::proptest` development dependency to check
+integer and list roundtrips. `goml verify` repeats these checks against an independent registry snapshot.
 Budget tests cover left recursion, custom nested callbacks, shared sibling work,
 repetition, error relabeling, swallowed errors and binary prefix alternatives.
+
+## Development and examples
+
+Requires GoML 0.1.55 or newer. The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
+
+```sh
+goml run --example basic
+goml test
+goml verify --timeout 300s
+```
+
+`goml test` builds the example and runs its tests. `goml verify` repeats the example checks as an independent module against an isolated registry snapshot. `(cd ../verification && just ecosystem-test parser)` also retains the library-specific smoke and compatibility checks.

@@ -1,2 +1,5 @@
 [module]
 path = "ecosystem::parser"
+
+[dev-dependencies]
+"ecosystem::proptest" = "0.1.0"
