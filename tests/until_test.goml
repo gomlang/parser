@@ -1,0 +1,57 @@
+package tests;
+
+use ecosystem::parser;
+use std::testing;
+
+#[test]
+fn terminator_wins_over_items_and_preserves_unicode_spans() -> () {
+    let comment = parser::literal("/*").right(parser::any_char().many_until(parser::literal("*/")));
+    let parsed = testing::expect_ok(comment.parse("/*é**x*/"), "comment");
+    testing::assert(parsed.0 == Vec::from_array(['é', '*', '*', 'x']));
+    testing::assert_eq(parsed.1, "*/");
+    testing::assert(testing::expect_ok(comment.parse("/**/"), "empty").0.is_empty());
+    testing::assert_err(comment.parse("/*missing"));
+    let retained = parser::any_char().many_until(parser::literal("!").peek());
+    let (_, rest) = testing::expect_ok(retained.parse_prefix("é!tail"), "retained");
+    testing::assert_eq(rest, "!tail");
+    let spanned = parser::any_char().many_until(parser::end()).spanned();
+    let parsed = testing::expect_ok(spanned.parse("é😀"), "EOF");
+    testing::assert_eq(parsed.1, parser::Span { start: 0, end: 6 });
+}
+
+#[test]
+fn until_enforces_progress_commitment_and_furthest_diagnostics() -> () {
+    testing::assert_err(parser::pure(1).many_until(parser::literal("!")).parse("x"));
+    testing::assert(
+        testing::expect_ok(parser::pure(1).many_until(parser::pure(2)).parse(""), "zero terminator").0.is_empty(),
+    );
+    let committed = parser::any_char().many_until(parser::literal("!").cut());
+    testing::assert(testing::expect_err(committed.parse("a!"), "committed terminator").committed);
+    let items = parser::literal("a").cut().many_until(parser::literal("!"));
+    testing::assert(testing::expect_err(items.parse("b!"), "committed item").committed);
+    let missing = parser::literal("a").many_until(parser::literal("en").right(parser::literal("d")));
+    let problem = testing::expect_err(missing.parse("aenX"), "furthest");
+    testing::assert_eq(problem.offset, 3);
+    let problem = testing::expect_err(missing.parse("?"), "tie");
+    testing::assert(problem.expected.contains("en") && problem.expected.contains("a"));
+}
+
+#[test]
+fn until_shares_resource_limits_and_cannot_swallow_exhaustion() -> () {
+    let parser = parser::any_char().many_until(parser::literal("!"));
+    let context = testing::expect_ok(
+        parser::ParseContext::new(parser::ParseLimits { max_depth: 10, max_work: 100 }),
+        "context",
+    );
+    let _ = testing::expect_ok(parser.parse_in(context, "abc!", 0), "parse");
+    testing::assert(context.work_used() >= 11);
+    testing::assert_err(
+        parser.attempt().optional().parse_with_limits(
+            "abc!",
+            parser::ParseLimits { max_depth: 10, max_work: 5 },
+        ),
+    );
+    testing::assert_err(
+        parser.parse_with_limits("!", parser::ParseLimits { max_depth: 1, max_work: 100 }),
+    );
+}

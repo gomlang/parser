@@ -71,3 +71,15 @@ fn integer_and_list_roundtrips_across_modules() -> () {
         ),
     );
 }
+
+#[test]
+fn downstream_sentinel_records_stop_before_eof() -> () {
+    let records = parser::integer().left(parser::literal(";")).many_until(parser::literal("END"));
+    let ((values, ending), rest) = testing::expect_ok(
+        records.parse_prefix("1;2;ENDtail"),
+        "records",
+    );
+    testing::assert(values == Vec::from_array([1, 2]));
+    testing::assert_eq(ending, "END");
+    testing::assert_eq(rest, "tail");
+}
