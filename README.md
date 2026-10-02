@@ -62,6 +62,7 @@ outer limit. These budgets bound library work, not wall time or exact heap size.
 | Repetition | `many`, `many1`, `repeat(minimum, maximum)`, `separated(separator, minimum, trailing)` |
 | Observation | `peek`, `not`, `position`, `end`, `spanned`, `recognize` |
 | Errors | `cut`, `attempt`, `label`, `context`, `Error::render` |
+| Recovery | `recover`, `recover_many`, `Recovery`, `Report[T]`, `collect_recovered` |
 | Operators | `chain_left`, `chain_right` |
 | Text primitives | `literal`, `take_while`, `satisfy`, `character`, `any_char`, `one_of`, `none_of` |
 | Lexical helpers | `whitespace`, `token`, `digits`, `integer`, `decimal`, `identifier`, `quoted`, `line_ending`, `rest_of_line` |
@@ -85,6 +86,82 @@ part and exponent; a decimal point or exponent marker requires following digits.
 addition and subtraction with precedence. `lazy` supports productive recursive
 grammars; left recursion must be eliminated. Text parsers consume an available
 string, while incremental binary parsing uses the API below.
+
+### Explicit error recovery
+
+Strict parsers and `parse` keep their existing behavior. Opt into recovery at a
+grammar boundary whose malformed input can be discarded:
+
+```goml
+use ecosystem::parser;
+
+fn configuration(input: string) -> Result[parser::Report[Vec[(string, isize)]], parser::Error] {
+    let record = parser::token(parser::identifier())
+        .left(parser::literal("="))
+        .then(parser::token(parser::integer()))
+        .left(parser::token(parser::literal(";")))
+        .cut();
+    let recovery = parser::Recovery::until(Vec::from_array([";"]))
+        .nested("[", "]")
+        .nested("(", ")")
+        .quoted('"');
+    parser::whitespace().right(record.recover_many(recovery)).parse(input)
+}
+```
+
+For `port=8080;broken;workers=4;`, the report contains both valid assignments in
+`value` and one original parser error in `errors`. Recoverable syntax errors,
+including committed errors, become report data. A `Result::Err` still indicates
+failure of the surrounding grammar, invalid configuration, lack of repetition
+progress, or exhausted resource limits. Always inspect `errors` before treating
+the input as valid; recovery never invents a replacement value.
+
+`recover(strategy)` produces `Parser[Report[Option[T]]]`: success supplies
+`Some(value)` and no errors; recovery supplies `None` and the original error.
+`recover_many(strategy)` repeatedly parses complete records until EOF, returning
+`Report[Vec[T]]` with successful values and errors in source order. Empty input
+produces an empty report without attempting a record. The example above and its
+tests also run through `goml verify` as an independent downstream module.
+
+`Recovery::until(markers)` consumes the first top-level synchronization marker.
+`before()` retains that marker for a surrounding separator or closing-delimiter
+parser. An empty marker list means skip to EOF; empty marker strings are invalid.
+`nested(open, close)` protects balanced delimiter pairs, and `quoted(quote)`
+protects quoted text with backslash escaping of the following Unicode scalar.
+No delimiter, quote, escape beyond backslash, or comment convention is implicit.
+Delimiter strings must be nonempty and distinct within each pair. Overlapping
+markers and opening delimiters select the longest match; equal opening strings
+use the first configured pair. At top level, a synchronization marker takes
+precedence over a quote or opening delimiter; inside a nested region the current
+closing delimiter takes precedence. Builders snapshot their collections.
+
+Scanning restarts at the failed parser's input offset, including already consumed
+opening delimiters. Markers inside protected regions are ignored. Mismatched
+closing delimiters are skipped as ordinary text; an unclosed region or quote
+conservatively consumes through EOF and reports the original error once. Offsets
+remain UTF-8 byte offsets. Scans, marker comparisons, and protected nesting share
+the parse's work/depth limits. Exhaustion remains sticky and cannot become a
+successful recovery report, even through `attempt`, `optional`, or callbacks.
+
+Use `collect_recovered` to combine individually recovered items into a list report:
+
+```goml
+let boundary = parser::literal(",").or(parser::literal("]")).peek();
+let item = parser::integer().left(boundary).recover(
+    parser::Recovery::until(Vec::from_array([",", "]"])).before().nested("(", ")"),
+);
+let list = item.separated(parser::literal(","), 1, false)
+    .map(parser::collect_recovered)
+    .between(parser::literal("["), parser::literal("]"));
+```
+
+`[1,bad(2,3),,5]` retains `1` and `5` and reports two bad items. Here the list
+separator guarantees progress even for an empty bad item. `recover` itself may
+return without advancing at an immediate retained marker or EOF; ordinary `many`
+and `recover_many` reject such iterations. Use `recover_many` for whole records
+whose successful and recovered forms both advance. Reports travel as parser
+values, so a failed alternative cannot leave diagnostics in shared context.
+Binary incomplete-frame handling is unchanged; this recovery API applies to text.
 
 ## Binary API
 
@@ -143,6 +220,9 @@ of a binary frame. The example uses the `ecosystem::proptest` development depend
 integer and list roundtrips. `goml verify` repeats these checks against an independent registry snapshot.
 Budget tests cover left recursion, custom nested callbacks, shared sibling work,
 repetition, error relabeling, swallowed errors and binary prefix alternatives.
+Recovery tests cover multiple malformed records, list composition, nested and
+quoted markers, consumed openers, UTF-8 offsets, EOF, zero progress, resource
+exhaustion, configuration snapshots, and backtracked diagnostics.
 
 ## Development and examples
 

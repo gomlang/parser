@@ -1,0 +1,242 @@
+package parser;
+
+pub struct Report[T] {
+    pub value: T,
+    pub errors: Vec[Error],
+}
+
+pub struct Recovery {
+    markers: Vec[string],
+    delimiters: Vec[(string, string)],
+    quotes: Vec[string],
+    consume: bool,
+}
+
+impl Recovery {
+    pub fn until(markers: Vec[string]) -> Recovery {
+        Recovery {
+            markers: markers.copy(),
+            delimiters: Vec::new(),
+            quotes: Vec::new(),
+            consume: true,
+        }
+    }
+
+    pub fn before(self: Recovery) -> Recovery {
+        Recovery { consume: false, ..self }
+    }
+
+    pub fn nested(self: Recovery, open: string, close: string) -> Recovery {
+        let delimiters = self.delimiters.copy();
+        delimiters.push((open, close));
+        Recovery { delimiters, ..self }
+    }
+
+    pub fn quoted(self: Recovery, quote: char) -> Recovery {
+        let quotes = self.quotes.copy();
+        quotes.push(quote.to_string());
+        Recovery { quotes, ..self }
+    }
+
+    fn validate(self: Recovery, context: ParseContext, offset: isize) -> Result[(), Error] {
+        for marker in self.markers {
+            context.charge(1, offset)?;
+            if marker.byte_len() == 0 {
+                return Result::Err(
+                    Error { offset, expected: "nonempty recovery marker", committed: true },
+                )
+            }
+        }
+        for (open, close) in self.delimiters {
+            context.charge(1, offset)?;
+            if open.byte_len() == 0 || close.byte_len() == 0 || open == close {
+                return Result::Err(
+                    Error {
+                        offset,
+                        expected: "distinct nonempty recovery delimiters",
+                        committed: true,
+                    },
+                )
+            }
+        }
+        Result::Ok(())
+    }
+
+    fn scan(self: Recovery, context: ParseContext, input: string, offset: isize) -> Result[
+        isize,
+        Error,
+    ] {
+        let stack: Vec[(string, ParseContext)] = Vec::new();
+        let mut active = context;
+        let mut next = offset;
+        while next < input.byte_len() {
+            active.charge(1, next)?;
+            if stack.is_empty() {
+                let mut marker_length = 0;
+                for marker in self.markers {
+                    if recovery_matches(active, input, next, marker)?
+                        && marker.byte_len() > marker_length {
+                        marker_length = marker.byte_len();
+                    }
+                }
+                if marker_length > 0 {
+                    return Result::Ok(
+                        if self.consume {
+                            next + marker_length
+                        } else {
+                            next
+                        },
+                    )
+                }
+            } else {
+                let (close, parent) = stack[stack.len() - 1];
+                if recovery_matches(active, input, next, close)? {
+                    next += close.byte_len();
+                    let _ = stack.pop();
+                    active = parent;
+                    continue;
+                }
+            }
+            let mut quoted_end = Option::None;
+            for quote in self.quotes {
+                if recovery_matches(active, input, next, quote)? {
+                    quoted_end = Option::Some(
+                        recovery_quoted(active.nested(next)?, input, next, quote)?,
+                    );
+                    break;
+                }
+            }
+            if let Some(end) = quoted_end {
+                next = end;
+                continue;
+            }
+            let mut opening: Option[(string, string)] = Option::None;
+            for (open, close) in self.delimiters {
+                if recovery_matches(active, input, next, open)? {
+                    let longer = match opening {
+                        Some((previous, _)) => open.byte_len() > previous.byte_len(),
+                        None => true,
+                    };
+                    if longer {
+                        opening = Option::Some((open, close));
+                    }
+                }
+            }
+            if let Some((open, close)) = opening {
+                let nested = active.nested(next)?;
+                stack.push((close, active));
+                active = nested;
+                next += open.byte_len();
+            } else {
+                next = recovery_scalar(active, input, next)?;
+            }
+        }
+        Result::Ok(next)
+    }
+}
+
+fn recovery_matches(context: ParseContext, input: string, offset: isize, expected: string) -> Result[
+    bool,
+    Error,
+] {
+    context.charge(expected.byte_len(), offset)?;
+    Result::Ok(input.starts_with_at(offset, expected))
+}
+
+fn recovery_scalar(context: ParseContext, input: string, offset: isize) -> Result[isize, Error] {
+    let mut next = offset;
+    loop {
+        context.charge(1, next)?;
+        next += 1;
+        if input.is_char_boundary(next) {
+            return Result::Ok(next)
+        }
+    }
+}
+
+fn recovery_quoted(context: ParseContext, input: string, offset: isize, quote: string) -> Result[
+    isize,
+    Error,
+] {
+    let mut next = offset + quote.byte_len();
+    while next < input.byte_len() {
+        if recovery_matches(context, input, next, quote)? {
+            return Result::Ok(next + quote.byte_len())
+        }
+        let escaped = input.byte_get(next) == b'\\';
+        next = recovery_scalar(context, input, next)?;
+        if escaped && next < input.byte_len() {
+            next = recovery_scalar(context, input, next)?;
+        }
+    }
+    Result::Ok(next)
+}
+
+impl[T] Parser[T] {
+    pub fn recover(self: Parser[T], recovery: Recovery) -> Parser[Report[Option[T]]] {
+        Parser::with_context(
+            |context, input, offset| {
+                recovery.validate(context, offset)?;
+                match self.parse_in(context, input, offset) {
+                    Ok((value, next)) => Result::Ok(
+                        (Report { value: Option::Some(value), errors: Vec::new() }, next),
+                    ),
+                    Err(problem) => {
+                        if let Some(limit) = context.limit_error() {
+                            return Result::Err(limit)
+                        }
+                        let next = recovery.scan(context, input, offset)?;
+                        Result::Ok(
+                            (
+                                Report { value: Option::None, errors: Vec::from_array([problem]) },
+                                next,
+                            ),
+                        )
+                    },
+                }
+            },
+        )
+    }
+
+    pub fn recover_many(self: Parser[T], recovery: Recovery) -> Parser[Report[Vec[T]]] {
+        let recovered = self.recover(recovery);
+        Parser::with_context(
+            |context, input: string, offset| {
+                recovery.validate(context, offset)?;
+                let values: Vec[T] = Vec::new();
+                let errors: Vec[Error] = Vec::new();
+                let mut next = offset;
+                while next < input.byte_len() {
+                    let (report, end) = recovered.parse_in(context, input, next)?;
+                    if end == next {
+                        return Result::Err(
+                            Error {
+                                offset: next,
+                                expected: "recovery repetition must consume input",
+                                committed: true,
+                            },
+                        )
+                    }
+                    if let Some(value) = report.value {
+                        values.push(value);
+                    }
+                    errors.extend(report.errors);
+                    next = end;
+                }
+                Result::Ok((Report { value: values, errors }, next))
+            },
+        )
+    }
+}
+
+pub fn collect_recovered[T](reports: Vec[Report[Option[T]]]) -> Report[Vec[T]] {
+    let values: Vec[T] = Vec::new();
+    let errors: Vec[Error] = Vec::new();
+    for report in reports {
+        if let Some(value) = report.value {
+            values.push(value);
+        }
+        errors.extend(report.errors);
+    }
+    Report { value: values, errors }
+}

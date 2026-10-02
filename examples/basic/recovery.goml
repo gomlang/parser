@@ -1,0 +1,13 @@
+package main;
+
+use ecosystem::parser;
+
+pub fn configuration(input: string) -> Result[parser::Report[Vec[(string, isize)]], parser::Error] {
+    let record = parser::token(parser::identifier()).left(parser::literal("=")).then(
+        parser::token(parser::integer()),
+    ).left(parser::token(parser::literal(";"))).cut();
+    let recovery = parser::Recovery::until(Vec::from_array([";"])).nested("[", "]").nested("(", ")").quoted(
+        '"',
+    );
+    parser::whitespace().right(record.recover_many(recovery)).parse(input)
+}

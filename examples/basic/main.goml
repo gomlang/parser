@@ -24,5 +24,11 @@ fn main() -> () {
         "42",
     );
     testing::assert(testing::expect_ok(source.next(), "end").is_none());
+    let report = testing::expect_ok(
+        configuration("port=8080;broken;workers=4;"),
+        "configuration recovery",
+    );
+    testing::assert(report.value == Vec::from_array([("port", 8080), ("workers", 4)]));
+    testing::assert_eq(report.errors.len(), 1);
     println("parser consumer: ok")
 }
