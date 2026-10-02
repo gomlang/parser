@@ -2,7 +2,20 @@ package tests;
 
 use ecosystem::parser;
 use ecosystem::proptest;
+use ecosystem::parser::examples::basic as basic;
 use std::testing;
+
+#[test]
+fn recovering_configuration_preserves_partial_results_across_modules() -> () {
+    let report = testing::expect_ok(
+        basic::configuration(" port = 8080;bad=[1;2];threads=no; workers=4;"),
+        "configuration",
+    );
+    testing::assert(report.value == Vec::from_array([("port", 8080), ("workers", 4)]));
+    testing::assert_eq(report.errors.len(), 2);
+    testing::assert(report.errors[0].committed);
+    testing::assert(report.errors[0].offset < report.errors[1].offset);
+}
 
 #[test]
 fn contextual_custom_parser_preserves_exported_work_budget() -> () {

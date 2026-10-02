@@ -1,0 +1,182 @@
+package tests;
+
+use ecosystem::parser;
+use std::testing;
+
+fn records() -> parser::Parser[(string, isize)] {
+    parser::identifier().left(parser::literal("=")).then(parser::integer()).left(
+        parser::literal(";"),
+    ).cut()
+}
+
+fn recovery() -> parser::Recovery {
+    parser::Recovery::until(Vec::from_array([";"])).nested("(", ")").nested("[", "]").quoted('"')
+}
+
+#[test]
+fn recovery_collects_multiple_errors_and_preserves_good_records() -> () {
+    let input = "a=1;broken;名=no;b=2;unfinished=";
+    let report = testing::expect_ok(
+        records().recover_many(recovery()).parse(input),
+        "recover records",
+    );
+    testing::assert(report.value == Vec::from_array([("a", 1), ("b", 2)]));
+    testing::assert_eq(report.errors.len(), 3);
+    testing::assert_eq(report.errors[0].offset, 10);
+    testing::assert_eq(report.errors[1].offset, 15);
+    testing::assert_eq(report.errors[2].offset, input.byte_len());
+    testing::assert(report.errors[0].committed);
+    testing::assert_err(records().many().parse(input));
+    let empty = testing::expect_ok(records().recover_many(recovery()).parse(""), "empty records");
+    testing::assert(empty.value.is_empty());
+    testing::assert(empty.errors.is_empty());
+}
+
+#[test]
+fn recovery_rescans_consumed_openers_and_skips_nested_and_quoted_markers() -> () {
+    let item = parser::literal("[").right(parser::integer()).left(parser::literal("];")).cut();
+    let source = "[bad;[also;bad];\"escaped\\\";still\"];[42];";
+    let report = testing::expect_ok(item.recover_many(recovery()).parse(source), "nested records");
+    testing::assert(report.value == Vec::from_array([42]));
+    testing::assert_eq(report.errors.len(), 1);
+    testing::assert_eq(report.errors[0].offset, 1);
+    let nested = testing::expect_ok(
+        records().recover_many(recovery()).parse("bad([x;y]);a=3;"),
+        "nested delimiter kinds",
+    );
+    testing::assert(nested.value == Vec::from_array([("a", 3)]));
+    testing::assert_eq(nested.errors.len(), 1);
+    let unterminated = testing::expect_ok(
+        records().recover_many(recovery()).parse("bad[;a=3;"),
+        "unterminated nesting",
+    );
+    testing::assert(unterminated.value.is_empty());
+    testing::assert_eq(unterminated.errors.len(), 1);
+    let quote = testing::expect_ok(
+        records().recover_many(recovery()).parse("bad\";a=3;\\"),
+        "unterminated quote",
+    );
+    testing::assert(quote.value.is_empty());
+    testing::assert_eq(quote.errors.len(), 1);
+}
+
+#[test]
+fn recovery_composes_with_lists_without_consuming_their_delimiters() -> () {
+    let boundary = parser::literal(",").or(parser::literal("]")).peek();
+    let item = parser::integer().left(boundary).recover(
+        parser::Recovery::until(Vec::from_array([",", "]"])).before().nested("(", ")"),
+    );
+    let list = item.separated(parser::literal(","), 1, false).map(parser::collect_recovered).between(
+        parser::literal("["),
+        parser::literal("]"),
+    );
+    let report = testing::expect_ok(list.parse("[1,wrong(2,3),,4x,5]"), "recover list");
+    testing::assert(report.value == Vec::from_array([1, 5]));
+    testing::assert_eq(report.errors.len(), 3);
+    testing::assert_eq(report.errors[0].offset, 3);
+    testing::assert_eq(report.errors[1].offset, 14);
+    testing::assert_eq(report.errors[2].offset, 16);
+    testing::assert_err(list.parse("[1,broken"));
+}
+
+#[test]
+fn recovery_handles_utf8_longest_markers_and_final_eof() -> () {
+    let recovery = parser::Recovery::until(Vec::from_array(["終", "終端"]));
+    let recovered = parser::literal("ok").recover(recovery);
+    let (report, next) = testing::expect_ok(recovered.parse_at("é🙂終端ok", 0), "unicode recovery");
+    testing::assert_none(report.value);
+    testing::assert_eq(next, 12);
+    testing::assert_eq(report.errors[0].offset, 0);
+    let (report, next) = testing::expect_ok(
+        recovered.parse_at("é🙂終端ok", next),
+        "remaining valid value",
+    );
+    testing::assert_eq(testing::expect_some(report.value, "valid value"), "ok");
+    testing::assert_eq(next, 14);
+    testing::assert(report.errors.is_empty());
+    let eof = testing::expect_ok(recovered.parse(""), "explicit EOF recovery");
+    testing::assert_none(eof.value);
+    testing::assert_eq(eof.errors[0].offset, 0);
+    testing::assert_err(recovered.parse_at("é", 1));
+    let report = testing::expect_ok(
+        parser::literal("ok").recover(parser::Recovery::until(Vec::new())).parse("🙂"),
+        "recover to EOF",
+    );
+    testing::assert_eq(report.errors.len(), 1);
+}
+
+#[test]
+fn recovery_repetition_rejects_no_progress_and_invalid_configuration() -> () {
+    let stopped = parser::literal("x").recover_many(
+        parser::Recovery::until(Vec::from_array([";"])).before(),
+    );
+    let problem = testing::expect_err(stopped.parse(";"), "zero-width recovery");
+    testing::assert_eq(problem.expected, "recovery repetition must consume input");
+    testing::assert(problem.committed);
+    testing::assert_err(parser::pure(1).recover_many(recovery()).parse("x"));
+    testing::assert_err(parser::literal("x").recover(recovery()).many().parse(""));
+    testing::assert_err(
+        parser::literal("x").recover(parser::Recovery::until(Vec::from_array([""]))).parse("x"),
+    );
+    testing::assert_err(
+        parser::literal("x").recover_many(parser::Recovery::until(Vec::from_array([""]))).parse(""),
+    );
+    testing::assert_err(parser::literal("x").recover(recovery().nested("[", "[")).parse("x"));
+}
+
+#[test]
+fn recovery_never_swallows_shared_work_or_depth_exhaustion() -> () {
+    let limited = parser::ParseLimits { max_depth: 64, max_work: 30 };
+    let recovered = parser::literal("ok").recover_many(recovery()).attempt().label("records").optional();
+    let problem = testing::expect_err(
+        recovered.parse_with_limits("x".repeat(100), limited),
+        "scan budget",
+    );
+    testing::assert_eq(problem.expected, "parser work budget exceeded");
+    testing::assert(problem.committed);
+    let problem = testing::expect_err(
+        recovered.parse_with_limits(
+            "[".repeat(100),
+            parser::ParseLimits { max_depth: 8, max_work: 10000 },
+        ),
+        "recovery nesting budget",
+    );
+    testing::assert_eq(problem.expected, "parser nesting limit exceeded");
+    let context = testing::expect_ok(parser::ParseContext::new(limited), "shared context");
+    testing::assert_err(recovered.parse_in(context, "x".repeat(100), 0));
+    testing::assert_err(parser::pure(1).parse_in(context, "", 0));
+    let parser = parser::take_while(|_| true, 0, "bytes").recover(recovery());
+    let problem = testing::expect_err(
+        parser.parse_with_limits("x".repeat(100), limited),
+        "child budget",
+    );
+    testing::assert_eq(problem.expected, "parser work budget exceeded");
+}
+
+#[test]
+fn recovery_reports_do_not_leak_from_backtracked_branches() -> () {
+    let failed_branch = parser::literal("missing").recover(recovery()).left(parser::literal("!"));
+    let clean = parser::literal("ok;").recover(recovery());
+    let report = testing::expect_ok(failed_branch.or(clean).parse("ok;"), "alternative");
+    testing::assert_eq(testing::expect_some(report.value, "value"), "ok;");
+    testing::assert(report.errors.is_empty());
+    let markers = Vec::from_array([";"]);
+    let original = parser::Recovery::until(markers);
+    markers.push("!");
+    let nested = original.nested("[", "]");
+    let (_, offset) = testing::expect_ok(
+        parser::literal("x").recover(original).parse_at("[a;b];", 0),
+        "original strategy",
+    );
+    testing::assert_eq(offset, 3);
+    let (_, offset) = testing::expect_ok(
+        parser::literal("x").recover(nested).parse_at("[a;b];", 0),
+        "nested strategy",
+    );
+    testing::assert_eq(offset, 6);
+    let (_, offset) = testing::expect_ok(
+        parser::literal("x").recover(original).parse_at("a!b;", 0),
+        "snapshotted markers",
+    );
+    testing::assert_eq(offset, 4);
+}
