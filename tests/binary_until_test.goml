@@ -1,0 +1,166 @@
+package tests;
+
+use ecosystem::parser;
+use ecosystem::parser::binary;
+use std::panic;
+use std::testing;
+
+fn invalid(problem: binary::Error) -> parser::Error {
+    match problem {
+        binary::Error::Invalid(problem) => problem,
+        _ => panic::raise("expected invalid input"),
+    }
+}
+
+#[test]
+fn binary_until_prioritizes_terminators_and_preserves_offsets() -> () {
+    let records = binary::byte_value().many_until(binary::literal(b"END".as_slice()));
+    let ((values, ending), next) = testing::expect_ok(
+        records.parse_at(b"_abENxENDtail".as_slice(), 1),
+        "records",
+    );
+    testing::assert(values == b"abENx");
+    testing::assert(ending.to_vec() == b"END");
+    testing::assert_eq(next, 9);
+    testing::assert(testing::expect_ok(records.parse(b"END".as_slice()), "empty").0.is_empty());
+    let retained = binary::byte_value().many_until(binary::literal(b"!".as_slice()).peek());
+    let ((values, _), next) = testing::expect_ok(
+        retained.parse_at(b"ab!tail".as_slice(), 0),
+        "retained",
+    );
+    testing::assert(values == b"ab");
+    testing::assert_eq(next, 2);
+    testing::assert(
+        testing::expect_ok(
+            binary::byte_value().many_until(binary::end()).parse(b"abc".as_slice()),
+            "EOF",
+        ).0
+            == b"abc",
+    );
+    testing::assert(
+        testing::expect_ok(
+            binary::pure(1).many_until(binary::pure(2)).parse(b"".as_slice()),
+            "zero width end",
+        ).0.is_empty(),
+    );
+}
+
+#[test]
+fn binary_until_fragmentation_never_consumes_partial_terminator_as_payload() -> () {
+    let calls = Ref::new(0);
+    let item = binary::byte_value().map(
+        |value| {
+            calls.set(calls.get() + 1);
+            value
+        },
+    );
+    let records = item.many_until(binary::literal(b"END".as_slice()));
+    for length in 0..6 {
+        calls.set(0);
+        let input = b"abcEND";
+        let problem = testing::expect_err(records.parse(input.slice(0, length)), "fragment");
+        match problem {
+            binary::Error::Incomplete { offset, needed } => {
+                testing::assert_eq(offset, length);
+                testing::assert_eq(
+                    needed,
+                    if length <= 3 {
+                        3
+                    } else {
+                        6 - length
+                    },
+                );
+            },
+            _ => testing::fail("fragment must request more input"),
+        }
+        testing::assert_eq(
+            calls.get(),
+            if length < 3 {
+                length
+            } else {
+                3
+            },
+        );
+    }
+    let parser = binary::take(2).many_until(binary::literal(b"!".as_slice()));
+    testing::assert_eq(
+        testing::expect_err(parser.parse(b"a".as_slice()), "item fragment"),
+        binary::Error::Incomplete { offset: 1, needed: 1 },
+    );
+}
+
+#[test]
+fn binary_until_preserves_commitment_progress_and_diagnostics() -> () {
+    let problem = invalid(
+        testing::expect_err(
+            binary::pure(1).many_until(binary::literal(b"!".as_slice())).parse(b"x".as_slice()),
+            "no progress",
+        ),
+    );
+    testing::assert(problem.committed);
+    let problem = invalid(
+        testing::expect_err(
+            binary::byte_value().many_until(binary::literal(b"!".as_slice()).cut()).parse(
+                b"x!".as_slice(),
+            ),
+            "committed end",
+        ),
+    );
+    testing::assert(problem.committed);
+    let problem = invalid(
+        testing::expect_err(
+            binary::literal(b"a".as_slice()).cut().many_until(binary::literal(b"!".as_slice())).parse(
+                b"b!".as_slice(),
+            ),
+            "committed item",
+        ),
+    );
+    testing::assert(problem.committed);
+    let parser = binary::literal(b"a".as_slice()).many_until(binary::literal(b"end".as_slice()));
+    let problem = invalid(testing::expect_err(parser.parse(b"aenX".as_slice()), "furthest end"));
+    testing::assert_eq(problem.offset, 3);
+    let problem = invalid(
+        testing::expect_err(
+            binary::literal(b"abc".as_slice()).many_until(binary::literal(b"!".as_slice())).parse(
+                b"abX".as_slice(),
+            ),
+            "furthest item",
+        ),
+    );
+    testing::assert_eq(problem.offset, 2);
+    let problem = invalid(testing::expect_err(parser.parse(b"?".as_slice()), "tied errors"));
+    testing::assert_eq(problem.expected, "binary literal or binary literal");
+}
+
+#[test]
+fn binary_until_uses_shared_sticky_work_and_depth_budgets() -> () {
+    let parser = binary::byte_value().many_until(binary::literal(b"!".as_slice()));
+    let context = testing::expect_ok(
+        parser::ParseContext::new(parser::ParseLimits { max_depth: 10, max_work: 100 }),
+        "context",
+    );
+    let _ = testing::expect_ok(parser.parse_in(context, b"abc!".as_slice(), 0), "parse");
+    testing::assert(context.work_used() >= 11);
+    let problem = invalid(
+        testing::expect_err(
+            parser.attempt().optional().parse_with_limits(
+                b"abc!".as_slice(),
+                parser::ParseLimits { max_depth: 10, max_work: 5 },
+            ),
+            "sticky budget",
+        ),
+    );
+    testing::assert(problem.committed);
+    testing::assert(problem.expected.contains("work budget"));
+    let problem = invalid(
+        testing::expect_err(
+            parser.parse_with_limits(
+                b"!".as_slice(),
+                parser::ParseLimits { max_depth: 1, max_work: 100 },
+            ),
+            "depth budget",
+        ),
+    );
+    testing::assert(problem.committed);
+    testing::assert(problem.expected.contains("nesting limit"));
+}

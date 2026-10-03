@@ -1,0 +1,20 @@
+package tests;
+
+use ecosystem::parser::binary;
+use std::testing;
+
+#[test]
+fn downstream_binary_records_retry_fragmented_sentinels() -> () {
+    let records = binary::byte_value().many_until(binary::literal(b"\x00END".as_slice()));
+    testing::assert_eq(
+        testing::expect_err(records.parse(b"one\x00EN".as_slice()), "retry"),
+        binary::Error::Incomplete { offset: 6, needed: 1 },
+    );
+    let ((values, terminator), next) = testing::expect_ok(
+        records.parse_at(b"one\x00ENDtwo".as_slice(), 0),
+        "record",
+    );
+    testing::assert(values == b"one");
+    testing::assert(terminator.to_vec() == b"\x00END");
+    testing::assert_eq(next, 7);
+}

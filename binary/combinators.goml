@@ -3,6 +3,65 @@ package binary;
 use ecosystem::parser;
 
 impl[T] Parser[T] {
+    pub fn many_until[U](self: Parser[T], terminator: Parser[U]) -> Parser[(Vec[T], U)] {
+        Parser::with_context(
+            |context, input, offset| {
+                let values: Vec[T] = Vec::new();
+                let mut next = offset;
+                loop {
+                    let boundary_error = match terminator.parse_in(context, input, next) {
+                        Ok((end, after)) => return Result::Ok(((values, end), after)),
+                        Err(Error::Invalid(problem)) => {
+                            if problem.committed {
+                                return Result::Err(Error::Invalid(problem))
+                            }
+                            problem
+                        },
+                        Err(incomplete) => return Result::Err(incomplete),
+                    };
+                    match self.parse_in(context, input, next) {
+                        Ok((value, after)) => {
+                            if after == next {
+                                return Result::Err(
+                                    Error::Invalid(
+                                        parser::Error {
+                                            offset: next,
+                                            expected: "binary repetition must consume input",
+                                            committed: true,
+                                        },
+                                    ),
+                                )
+                            }
+                            values.push(value);
+                            next = after;
+                        },
+                        Err(Error::Invalid(problem)) => {
+                            if problem.committed || problem.offset > boundary_error.offset {
+                                return Result::Err(Error::Invalid(problem))
+                            }
+                            if boundary_error.offset > problem.offset {
+                                return Result::Err(Error::Invalid(boundary_error))
+                            }
+                            context.charge(
+                                boundary_error.expected.byte_len() + problem.expected.byte_len(),
+                                next,
+                            ).map_err(|problem| Error::Invalid(problem))?;
+                            return Result::Err(
+                                Error::Invalid(
+                                    parser::error(
+                                        problem.offset,
+                                        boundary_error.expected + " or " + problem.expected,
+                                    ),
+                                ),
+                            )
+                        },
+                        Err(incomplete) => return Result::Err(incomplete),
+                    }
+                }
+            },
+        )
+    }
+
     pub fn or(self: Parser[T], other: Parser[T]) -> Parser[T] {
         Parser::with_context(
             |context, input, offset| {

@@ -185,7 +185,7 @@ Binary incomplete-frame handling is unchanged; this recovery API applies to text
 
 Import `ecosystem::parser::binary`. Its separate `Parser[T]` takes a
 `Slice[byte]` and supports `parse`, `parse_at`, `map`, `try_map`, `then`, `left`,
-`right`, `and_then`, bounded `repeat`, `or`, `cut`, `attempt`, `optional`, `peek`,
+`right`, `and_then`, bounded `repeat`, `many_until`, `or`, `cut`, `attempt`, `optional`, `peek`,
 `not`, `verify` and `between`. `pure`, `lazy` and `end` support recursive layouts.
 The contextual constructor and resource-limit APIs match the text parser.
 
@@ -202,6 +202,15 @@ Binary alternatives backtrack only on uncommitted invalid input. `Incomplete`
 propagates unchanged through alternatives, optional parsing and lookahead so a
 short transport read cannot prematurely select a different branch. `cut` and
 `attempt` affect invalid errors, preserving the needed-byte count on truncation.
+
+`item.many_until(terminator)` returns `(items, ending)` and tries the terminator
+before each item, consuming it on success. A peeked terminator retains its bytes;
+`end()` terminates at EOF. Zero items and zero-width terminators are accepted, but
+every successful item must advance. An incomplete terminator prefix propagates
+unchanged without trying the item, so a fragmented sentinel is not consumed as
+payload. Incomplete items and committed invalid errors also propagate unchanged.
+Other failures retain the furthest diagnostic and combine tied expectations.
+Terminator probes, item parsing and diagnostics share the outer depth/work budget.
 
 ## Text scanner
 
