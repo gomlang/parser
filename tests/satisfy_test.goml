@@ -1,0 +1,56 @@
+package tests;
+
+use ecosystem::parser;
+use std::testing;
+
+#[test]
+fn satisfy_preserves_scalar_offsets_and_predicate_calls() -> () {
+    let calls = Ref::new(0);
+    let value = parser::satisfy(
+        |scalar| {
+            calls.set(calls.get() + 1);
+            scalar != 'x'
+        },
+        "accepted scalar",
+    );
+    let input = "aé中😀x";
+    for (offset, next, expected) in[(0, 1, 'a'), (1, 3, 'é'), (3, 6, '中'), (6, 10, '😀')] {
+        let parsed = testing::expect_ok(value.parse_at(input, offset), "scalar");
+        testing::assert_eq(parsed.0, expected);
+        testing::assert_eq(parsed.1, next);
+    }
+    testing::assert_eq(calls.get(), 4);
+    let rejected = testing::expect_err(value.parse_at(input, 10), "predicate mismatch");
+    testing::assert_eq(rejected, parser::error(10, "accepted scalar"));
+    testing::assert_eq(calls.get(), 5);
+    for offset in[-1, 2, 4, 5, 7, 8, 9, 11, 12] {
+        testing::assert_err(value.parse_at(input, offset));
+        testing::assert_eq(calls.get(), 5);
+    }
+}
+
+#[test]
+fn satisfy_predicate_reentry_cannot_hide_a_shared_budget_error() -> () {
+    for accepted in[false, true] {
+        let context = testing::expect_ok(
+            parser::ParseContext::new(parser::ParseLimits { max_depth: 4, max_work: 1 }),
+            "context",
+        );
+        let calls = Ref::new(0);
+        let value = parser::satisfy(
+            |_| {
+                calls.set(calls.get() + 1);
+                let _ = parser::any_char().parse_in(context, "x", 0);
+                accepted
+            },
+            "accepted scalar",
+        );
+        let problem = testing::expect_err(value.parse_in(context, "😀", 0), "sticky budget");
+        testing::assert_eq(problem.offset, 0);
+        testing::assert_eq(problem.expected, "parser work budget exceeded");
+        testing::assert(problem.committed);
+        testing::assert_eq(calls.get(), 1);
+        testing::assert_eq(context.work_used(), 1);
+        testing::assert_eq(context.peak_depth(), 1);
+    }
+}

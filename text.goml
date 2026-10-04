@@ -9,10 +9,9 @@ pub fn satisfy(predicate: (char) -> bool, expected: string) -> Parser[char] {
             if !input.is_char_boundary(offset) {
                 return Result::Err(error(offset, "UTF-8 character boundary"))
             }
-            let characters = input.byte_slice(offset, input.byte_len()).chars();
-            match characters.next() {
-                Some(value) => if predicate(value) {
-                    Result::Ok((value, offset + value.to_string().byte_len()))
+            match input.decode_at(offset) {
+                Some((value, width)) => if predicate(value) {
+                    Result::Ok((value, offset + width))
                 } else {
                     Result::Err(error(offset, expected))
                 },
