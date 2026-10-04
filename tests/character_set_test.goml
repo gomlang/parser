@@ -1,0 +1,82 @@
+package tests;
+
+use ecosystem::parser;
+use std::testing;
+
+#[test]
+fn character_sets_charge_searches_to_the_shared_work_budget() -> () {
+    let limits = parser::ParseLimits { max_depth: 1, max_work: 32 };
+    for selection in[parser::one_of("x".repeat(4096) + "a"), parser::none_of("x".repeat(4096))] {
+        let context = testing::expect_ok(parser::ParseContext::new(limits), "context");
+        let problem = testing::expect_err(
+            selection.parse_in(context, "éa", 2),
+            "bounded set search",
+        );
+        testing::assert_eq(problem.expected, "parser work budget exceeded");
+        testing::assert_eq(problem.offset, 2);
+        testing::assert(problem.committed);
+        testing::assert_eq(context.work_used(), 32);
+        testing::assert_err(parser::pure(()).parse_in(context, "éa", 2));
+    }
+}
+
+#[test]
+fn character_sets_stop_at_the_first_match_and_keep_scalar_boundaries() -> () {
+    let limits = parser::ParseLimits { max_depth: 1, max_work: 4 };
+    let context = testing::expect_ok(parser::ParseContext::new(limits), "context");
+    let (value, end) = testing::expect_ok(
+        parser::one_of("é界😀").parse_in(context, "x😀y", 1),
+        "Unicode match",
+    );
+    testing::assert_eq(value, '😀');
+    testing::assert_eq(end, 5);
+    testing::assert_eq(context.work_used(), 4);
+    testing::assert_eq(context.peak_depth(), 1);
+    testing::assert_eq(
+        testing::expect_ok(
+            parser::one_of("a" + "x".repeat(4096)).parse_with_limits(
+                "a",
+                parser::ParseLimits { max_work: 2, ..limits },
+            ),
+            "early match",
+        ),
+        'a',
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            parser::none_of("é界").parse_with_limits(
+                "😀",
+                parser::ParseLimits { max_work: 3, ..limits },
+            ),
+            "Unicode exclusion",
+        ),
+        '😀',
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            parser::none_of("").parse_with_limits(
+                "界",
+                parser::ParseLimits { max_work: 1, ..limits },
+            ),
+            "empty exclusion",
+        ),
+        '界',
+    );
+    testing::assert_err(parser::one_of("").parse_with_limits("界", limits));
+    testing::assert_err(parser::none_of("界").parse_with_limits("界", limits));
+    testing::assert_err(parser::one_of("x".repeat(4096)).parse_with_limits("", limits));
+    testing::assert_err(parser::none_of("x".repeat(4096)).parse_with_limits("", limits));
+}
+
+#[test]
+fn character_set_budget_failures_remain_sticky_through_backtracking() -> () {
+    let limits = parser::ParseLimits { max_depth: 16, max_work: 12 };
+    for selection in[parser::one_of("x".repeat(4096) + "a"), parser::none_of("x".repeat(4096))] {
+        let problem = testing::expect_err(
+            selection.attempt().label("renamed").optional().parse_with_limits("a", limits),
+            "sticky set search budget",
+        );
+        testing::assert_eq(problem.expected, "parser work budget exceeded");
+        testing::assert(problem.committed);
+    }
+}

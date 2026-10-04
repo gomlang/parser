@@ -29,9 +29,12 @@ nested parser calls and 1,000,000 work units. `parse_with_limits(input, limits)`
 overrides these limits; depths must be 1 through 4096 and work nonnegative.
 One `ParseContext` is shared by all built-in combinators, alternatives, repetitions,
 dependent parsers and `lazy` calls in that parse. Backtracking never replenishes
-work. Each invocation costs one unit; byte scans, literal comparisons and error
-expectation concatenation also consume work. Binary `take` returns a slice in
-constant time and charges its invocation rather than every returned byte.
+work. Each invocation costs one unit; byte scans, literal comparisons, character-set
+comparisons and error expectation concatenation also consume work. `one_of` and
+`none_of` charge one unit per inspected set scalar and stop at the first match;
+large sets can therefore exhaust limits that previously counted only invocation.
+Binary `take` returns a slice in constant time and charges its invocation rather
+than every returned byte.
 
 Depth/work exhaustion returns a committed error at the stopping byte offset.
 It remains sticky through `attempt`, `label`, `optional`, negative lookahead and

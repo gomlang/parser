@@ -30,12 +30,38 @@ pub fn any_char() -> Parser[char] {
     satisfy(|_| true, "character")
 }
 
+fn character_set(values: string, accept_members: bool) -> Parser[char] {
+    let expected = if accept_members {
+        "one of " + values
+    } else {
+        "character outside " + values
+    };
+    Parser::with_context(
+        |context, input: string, offset| {
+            let (value, width) = input.decode_at(offset).ok_or(error(offset, expected))?;
+            let mut found = false;
+            for candidate in values.chars() {
+                context.charge(1, offset)?;
+                if candidate == value {
+                    found = true;
+                    break;
+                }
+            }
+            if found == accept_members {
+                Result::Ok((value, offset + width))
+            } else {
+                Result::Err(error(offset, expected))
+            }
+        },
+    )
+}
+
 pub fn one_of(values: string) -> Parser[char] {
-    satisfy(|value| values.contains(value.to_string()), "one of " + values)
+    character_set(values, true)
 }
 
 pub fn none_of(values: string) -> Parser[char] {
-    satisfy(|value| !values.contains(value.to_string()), "character outside " + values)
+    character_set(values, false)
 }
 
 pub fn digits() -> Parser[string] {
