@@ -49,7 +49,12 @@ impl Recovery {
         }
         for (open, close) in self.delimiters {
             context.charge(1, offset)?;
-            if open.byte_len() == 0 || close.byte_len() == 0 || open == close {
+            let mut identical = false;
+            if open.byte_len() > 0 && open.byte_len() == close.byte_len() {
+                context.charge(open.byte_len(), offset)?;
+                identical = open == close;
+            }
+            if open.byte_len() == 0 || close.byte_len() == 0 || identical {
                 return Result::Err(
                     Error {
                         offset,

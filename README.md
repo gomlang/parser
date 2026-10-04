@@ -160,9 +160,13 @@ Scanning restarts at the failed parser's input offset, including already consume
 opening delimiters. Markers inside protected regions are ignored. Mismatched
 closing delimiters are skipped as ordinary text; an unclosed region or quote
 conservatively consumes through EOF and reports the original error once. Offsets
-remain UTF-8 byte offsets. Scans, marker comparisons, and protected nesting share
-the parse's work/depth limits. Exhaustion remains sticky and cannot become a
-successful recovery report, even through `attempt`, `optional`, or callbacks.
+remain UTF-8 byte offsets. Scans, marker comparisons, delimiter validation, and
+protected nesting share the parse's work/depth limits. Comparing equal-length
+opening/closing delimiters charges their byte length before inspecting contents.
+Delimiters of different lengths require only a constant-time length check. This
+validation also runs before a successful child parse. Exhaustion remains sticky
+and cannot become a successful recovery report, even through `attempt`,
+`optional`, or callbacks.
 
 Use `collect_recovered` to combine individually recovered items into a list report:
 

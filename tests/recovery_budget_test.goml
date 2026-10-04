@@ -1,0 +1,66 @@
+package tests;
+
+use ecosystem::parser;
+use std::testing;
+
+#[test]
+fn recovery_delimiter_validation_cannot_bypass_the_shared_work_budget() -> () {
+    let common = "界".repeat(4096);
+    let recovery = parser::Recovery::until(Vec::new()).nested(common + "(", common + ")");
+    let recovered = parser::literal("x").recover(recovery);
+    let context = testing::expect_ok(
+        parser::ParseContext::new(parser::ParseLimits { max_depth: 4, max_work: 32 }),
+        "context",
+    );
+    let problem = testing::expect_err(
+        recovered.parse_in(context, "éx", 2),
+        "bounded delimiter validation before successful child",
+    );
+    testing::assert_eq(problem.expected, "parser work budget exceeded");
+    testing::assert_eq(problem.offset, 2);
+    testing::assert(problem.committed);
+    testing::assert_eq(
+        testing::expect_err(parser::pure(()).parse_in(context, "éx", 2), "sticky budget"),
+        problem,
+    );
+    let problem = testing::expect_err(
+        recovered.attempt().optional().parse_with_limits(
+            "x",
+            parser::ParseLimits { max_depth: 8, max_work: 32 },
+        ),
+        "wrapped validation budget",
+    );
+    testing::assert_eq(problem.expected, "parser work budget exceeded");
+    testing::assert(problem.committed);
+}
+
+#[test]
+fn recovery_delimiter_validation_handles_length_checks_and_unicode_comparisons() -> () {
+    let common = "界".repeat(4096);
+    let recovery = parser::Recovery::until(Vec::new()).nested(common + "(", ")");
+    let report = testing::expect_ok(
+        parser::literal("x").recover(recovery).parse_with_limits(
+            "x",
+            parser::ParseLimits { max_depth: 2, max_work: 4 },
+        ),
+        "different delimiter lengths require no byte comparison",
+    );
+    testing::assert_eq(testing::expect_some(report.value, "successful child"), "x");
+    testing::assert(report.errors.is_empty());
+    let context = testing::expect_ok(
+        parser::ParseContext::new(parser::ParseLimits { max_depth: 2, max_work: 7 }),
+        "exact byte budget",
+    );
+    let (report, next) = testing::expect_ok(
+        parser::literal("x").recover(parser::Recovery::until(Vec::new()).nested("「", "」")).parse_in(
+            context,
+            "x",
+            0,
+        ),
+        "three-byte delimiter comparison",
+    );
+    testing::assert_eq(testing::expect_some(report.value, "successful child"), "x");
+    testing::assert_eq(next, 1);
+    testing::assert_eq(context.work_used(), 7);
+    testing::assert_eq(context.peak_depth(), 2);
+}
