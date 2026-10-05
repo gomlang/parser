@@ -108,13 +108,12 @@ impl Scanner {
     }
 
     fn current(self: Scanner) -> Option[char] {
-        let offset = self.cursor.get().offset;
-        self.input.byte_slice(offset, self.input.byte_len()).chars().next()
+        self.input.decode_at(self.cursor.get().offset).map(|decoded| decoded.0)
     }
 
     fn advance(self: Scanner) -> () {
-        if let Some(value) = self.current() {
-            let position = self.cursor.get();
+        let position = self.cursor.get();
+        if let Some((value, width)) = self.input.decode_at(position.offset) {
             if value == '\n' {
                 self.cursor.set(
                     Position { offset: position.offset + 1, line: position.line + 1, column: 1 },
@@ -122,7 +121,7 @@ impl Scanner {
             } else {
                 self.cursor.set(
                     Position {
-                        offset: position.offset + value.to_string().byte_len(),
+                        offset: position.offset + width,
                         line: position.line,
                         column: position.column + 1,
                     },
