@@ -142,7 +142,7 @@ the input as valid; recovery never invents a replacement value.
 `recover_many(strategy)` repeatedly parses complete records until EOF, returning
 `Report[Vec[T]]` with successful values and errors in source order. Empty input
 produces an empty report without attempting a record. The example above and its
-tests also run through `goml verify` as an independent downstream module.
+tests also run through the ecosystem verification runner as an independent downstream module.
 
 `Recovery::until(markers)` consumes the first top-level synchronization marker.
 `before()` retains that marker for a surrounding separator or closing-delimiter
@@ -251,7 +251,7 @@ token rules remain in gomlgo.
 The module tests cover precedence, commitment, backtracking, invalid ranges,
 zero-width repetitions, Unicode spans, errors, malformed numbers and every prefix
 of a binary frame. The example uses the `ecosystem::proptest` development dependency to check
-integer and list roundtrips. `goml verify` repeats these checks against an independent registry snapshot.
+integer and list roundtrips. The ecosystem verification runner repeats these checks against an independent registry snapshot.
 Budget tests cover left recursion, custom nested callbacks, shared sibling work,
 repetition, error relabeling, swallowed errors and binary prefix alternatives.
 Recovery tests cover multiple malformed records, list composition, nested and
@@ -260,12 +260,11 @@ exhaustion, configuration snapshots, and backtracked diagnostics.
 
 ## Development and examples
 
-Requires GoML 0.1.56 or newer. The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
+Requires the source-built GoML toolchain with unversioned registry support pinned in [verification/ci/toolchain.json](https://github.com/gomlang/verification/blob/main/ci/toolchain.json). The `examples/basic/` example shares the root manifest; test-only helpers are declared in `[dev-dependencies]`. From the library root, run:
 
 ```sh
 goml run --example basic
 goml test
-goml verify --timeout 300s
 ```
 
-`goml test` builds the example and runs its tests. `goml verify` repeats the example checks as an independent module against an isolated registry snapshot. `(cd ../verification && just ecosystem-test parser)` also retains the library-specific smoke and compatibility checks.
+`goml test` builds the example and runs its tests. `(cd ../verification && just ecosystem-test parser)` also retains the library-specific smoke and compatibility checks.
