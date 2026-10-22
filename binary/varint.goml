@@ -1,0 +1,40 @@
+package binary;
+
+use ecosystem::parser;
+
+pub fn uleb128() -> Parser[u64] {
+    Parser::with_context(
+        |context, input, offset| {
+            let mut value: u64 = 0;
+            for index in 0..10 {
+                let next = offset + index;
+                context.charge(1, next).map_err(|problem| Error::Invalid(problem))?;
+                if next >= input.len() {
+                    return Result::Err(Error::Incomplete { offset: next, needed: 1 })
+                }
+                let octet = input[next];
+                if index == 9 && octet > 1 {
+                    return Result::Err(Error::Invalid(parser::error(next, "64-bit ULEB128")))
+                }
+                value = value | ((octet & 127).to_u64() << (index * 7).to_u64());
+                if octet & 128 == 0 {
+                    return Result::Ok((value, next + 1))
+                }
+            }
+            Result::Err(Error::Invalid(parser::error(offset + 9, "64-bit ULEB128")))
+        },
+    )
+}
+
+pub fn zigzag64() -> Parser[i64] {
+    uleb128().map(
+        |value| {
+            let magnitude = (value >> 1).to_i64();
+            if value & 1 == 0 {
+                magnitude
+            } else {
+                -magnitude - 1
+            }
+        },
+    )
+}

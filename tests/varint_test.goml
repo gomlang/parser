@@ -1,0 +1,55 @@
+package tests;
+
+use ecosystem::parser;
+use ecosystem::parser::binary;
+use std::testing;
+
+#[test]
+fn varint_bounds_offsets_and_budgets() -> () {
+    testing::assert(
+        testing::expect_ok(binary::uleb128().parse_at(b"x\xac\x02z".as_slice(), 1), "offset")
+            == (300, 3),
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::uleb128().parse(b"\x80\x00".as_slice()), "overlong"),
+        0,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01".as_slice()),
+            "max",
+        ),
+        18446744073709551615,
+    );
+    for input in[b"", b"\x80", b"\x80\x80\x80\x80\x80\x80\x80\x80\x80"] {
+        match testing::expect_err(binary::uleb128().parse(input.as_slice()), "incomplete") {
+            binary::Error::Incomplete { offset, needed } => {
+                testing::assert_eq(offset, input.len());
+                testing::assert_eq(needed, 1);
+            },
+            _ => testing::fail("incomplete expected"),
+        }
+    }
+    for final_byte in[2.to_u8(), 127.to_u8(), 128.to_u8(), 255.to_u8()] {
+        let input = b"\x80\x80\x80\x80\x80\x80\x80\x80\x80";
+        input.push(final_byte);
+        match testing::expect_err(binary::uleb128().parse(input.as_slice()), "overflow") {
+            binary::Error::Invalid(problem) => testing::assert_eq(problem.offset, 9),
+            _ => testing::fail("invalid expected"),
+        }
+    }
+    testing::expect_err(
+        binary::uleb128().parse_with_limits(
+            b"\x80\x01".as_slice(),
+            parser::ParseLimits { max_depth: 8, max_work: 2 },
+        ),
+        "budget",
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01".as_slice()),
+            "signed min",
+        ),
+        -9223372036854775807 - 1,
+    );
+}

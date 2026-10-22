@@ -1,0 +1,1876 @@
+package tests;
+
+use ecosystem::parser::binary;
+use std::testing;
+
+#[test]
+fn go_varint_vectors() -> () {
+    testing::assert_eq(
+        testing::expect_ok(binary::uleb128().parse(b"\x00".as_slice()), "Go Uvarint"),
+        0,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::zigzag64().parse(b"\x00".as_slice()), "Go Varint"),
+        0,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::uleb128().parse(b"\x01".as_slice()), "Go Uvarint"),
+        1,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::zigzag64().parse(b"\x01".as_slice()), "Go Varint"),
+        -1,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::uleb128().parse(b"\x7f".as_slice()), "Go Uvarint"),
+        127,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::zigzag64().parse(b"\x7f".as_slice()), "Go Varint"),
+        -64,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::uleb128().parse(b"\x80\x01".as_slice()), "Go Uvarint"),
+        128,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::zigzag64().parse(b"\x80\x01".as_slice()), "Go Varint"),
+        64,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::uleb128().parse(b"\xff\x01".as_slice()), "Go Uvarint"),
+        255,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::zigzag64().parse(b"\xff\x01".as_slice()), "Go Varint"),
+        -128,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::uleb128().parse(b"\x80\x02".as_slice()), "Go Uvarint"),
+        256,
+    );
+    testing::assert_eq(
+        testing::expect_ok(binary::zigzag64().parse(b"\x80\x02".as_slice()), "Go Varint"),
+        128,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9223372036854775808,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x80\x80\x80\x80\x80\x80\x80\x80\x80\x01".as_slice()),
+            "Go Varint",
+        ),
+        4611686018427387904,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        18446744073709551615,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xff\xff\xff\xff\xff\xff\xff\xff\xff\x01".as_slice()),
+            "Go Varint",
+        ),
+        -9223372036854775807 - 1,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd3\x98\xfe\xb3\x99\x96\xd9\xdf\xaf\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        12663951391086054483,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd3\x98\xfe\xb3\x99\x96\xd9\xdf\xaf\x01".as_slice()),
+            "Go Varint",
+        ),
+        -6331975695543027242,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9b\xae\xee\xfd\xb9\x89\xad\xb9\x88\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9832119173398632219,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9b\xae\xee\xfd\xb9\x89\xad\xb9\x88\x01".as_slice()),
+            "Go Varint",
+        ),
+        -4916059586699316110,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe8\xbf\xee\xa2\xc1\xd0\xbc\xa9\x4d".as_slice()),
+            "Go Uvarint",
+        ),
+        5571782338101878760,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe8\xbf\xee\xa2\xc1\xd0\xbc\xa9\x4d".as_slice()),
+            "Go Varint",
+        ),
+        2785891169050939380,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x89\x92\xe7\xa6\xe3\xc7\xa4\xdd\x1a".as_slice()),
+            "Go Uvarint",
+        ),
+        1926012586526624009,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x89\x92\xe7\xa6\xe3\xc7\xa4\xdd\x1a".as_slice()),
+            "Go Varint",
+        ),
+        -963006293263312005,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x89\xba\xf7\x94\xf5\xfb\xf5\xcd\x85\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9627525982598323465,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x89\xba\xf7\x94\xf5\xfb\xf5\xcd\x85\x01".as_slice()),
+            "Go Varint",
+        ),
+        -4813762991299161733,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xcd\xec\x89\xda\x99\xcc\x9e\x86\x31".as_slice()),
+            "Go Uvarint",
+        ),
+        3534334367214237261,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xcd\xec\x89\xda\x99\xcc\x9e\x86\x31".as_slice()),
+            "Go Varint",
+        ),
+        -1767167183607118631,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9f\xbf\xb6\xd8\xd3\xf4\x96\x86\x68".as_slice()),
+            "Go Uvarint",
+        ),
+        7497468244883513247,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9f\xbf\xb6\xd8\xd3\xf4\x96\x86\x68".as_slice()),
+            "Go Varint",
+        ),
+        -3748734122441756624,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc0\xad\xd3\xe0\x84\xb1\xe1\x9a\xb1\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        12769259138917390016,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc0\xad\xd3\xe0\x84\xb1\xe1\x9a\xb1\x01".as_slice()),
+            "Go Varint",
+        ),
+        6384629569458695008,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x84\xb5\xac\x86\x8e\xee\xe6\x83\xb1\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        12756335378660268676,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x84\xb5\xac\x86\x8e\xee\xe6\x83\xb1\x01".as_slice()),
+            "Go Varint",
+        ),
+        6378167689330134338,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd8\x90\xfc\x89\xb6\xba\x9d\xde\xd2\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15185141594316539992,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd8\x90\xfc\x89\xb6\xba\x9d\xde\xd2\x01".as_slice()),
+            "Go Varint",
+        ),
+        7592570797158269996,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x82\xe8\xf6\xa0\x9f\xbf\xc6\x94\x5e".as_slice()),
+            "Go Uvarint",
+        ),
+        6784982874943501314,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x82\xe8\xf6\xa0\x9f\xbf\xc6\x94\x5e".as_slice()),
+            "Go Varint",
+        ),
+        3392491437471750657,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe1\x9f\xea\xf6\xf9\xcd\xe0\xf2\x9b\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        11233528261463674849,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe1\x9f\xea\xf6\xf9\xcd\xe0\xf2\x9b\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5616764130731837425,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xce\xe8\xb9\x8c\xf8\xdc\xe7\xa5\xae\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        12559306703000990798,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xce\xe8\xb9\x8c\xf8\xdc\xe7\xa5\xae\x01".as_slice()),
+            "Go Varint",
+        ),
+        6279653351500495399,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xbd\xdf\x8d\xe7\xc4\xdb\xae\xc2\x0f".as_slice()),
+            "Go Uvarint",
+        ),
+        1118224062840270781,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xbd\xdf\x8d\xe7\xc4\xdb\xae\xc2\x0f".as_slice()),
+            "Go Varint",
+        ),
+        -559112031420135391,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xbe\xd0\xdb\xf6\xc3\xf1\x93\xff\xd4\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15347792043893516350,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xbe\xd0\xdb\xf6\xc3\xf1\x93\xff\xd4\x01".as_slice()),
+            "Go Varint",
+        ),
+        7673896021946758175,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9c\xd6\xab\xa7\xd5\xed\xa3\xd6\xbb\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        13523341480825645852,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9c\xd6\xab\xa7\xd5\xed\xa3\xd6\xbb\x01".as_slice()),
+            "Go Varint",
+        ),
+        6761670740412822926,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x93\xba\xeb\xe0\xca\xc0\xb3\x97\x5b".as_slice()),
+            "Go Uvarint",
+        ),
+        6570415425842765075,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x93\xba\xeb\xe0\xca\xc0\xb3\x97\x5b".as_slice()),
+            "Go Varint",
+        ),
+        -3285207712921382538,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xa2\x8f\xf2\xab\x95\xef\xb3\xd1\xdb\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15826440160565561250,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xa2\x8f\xf2\xab\x95\xef\xb3\xd1\xdb\x01".as_slice()),
+            "Go Varint",
+        ),
+        7913220080282780625,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc7\x9d\xee\xd8\xf0\xd5\xab\xc4\x78".as_slice()),
+            "Go Uvarint",
+        ),
+        8685383948212866759,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc7\x9d\xee\xd8\xf0\xd5\xab\xc4\x78".as_slice()),
+            "Go Varint",
+        ),
+        -4342691974106433380,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9b\x84\x9e\x8d\x85\xc2\xa2\xa1\xfc\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        18177242848714785307,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9b\x84\x9e\x8d\x85\xc2\xa2\xa1\xfc\x01".as_slice()),
+            "Go Varint",
+        ),
+        -9088621424357392654,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xed\xf9\xc0\xe4\xa3\xf5\x90\xa3\x0f".as_slice()),
+            "Go Uvarint",
+        ),
+        1100641557378252013,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xed\xf9\xc0\xe4\xa3\xf5\x90\xa3\x0f".as_slice()),
+            "Go Varint",
+        ),
+        -550320778689126007,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xda\xf0\x89\xb3\xe0\xe2\xa5\xc5\x2b".as_slice()),
+            "Go Uvarint",
+        ),
+        3137486211269163098,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xda\xf0\x89\xb3\xe0\xe2\xa5\xc5\x2b".as_slice()),
+            "Go Varint",
+        ),
+        1568743105634581549,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xed\x99\x8c\xb7\xcc\xf8\xbc\xd7\xa4\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        11866690094643743981,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xed\x99\x8c\xb7\xcc\xf8\xbc\xd7\xa4\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5933345047321871991,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfb\x86\x83\xcf\xb4\xeb\x95\x89\x1d".as_slice()),
+            "Go Uvarint",
+        ),
+        2094832826273809275,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfb\x86\x83\xcf\xb4\xeb\x95\x89\x1d".as_slice()),
+            "Go Varint",
+        ),
+        -1047416413136904638,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfe\xfb\xfb\xe5\x80\x82\xca\xc3\x53".as_slice()),
+            "Go Uvarint",
+        ),
+        6018823476402388478,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfe\xfb\xfb\xe5\x80\x82\xca\xc3\x53".as_slice()),
+            "Go Varint",
+        ),
+        3009411738201194239,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe1\x81\xe8\xee\xdc\x85\xe2\xaf\x85\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9610549860140450017,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe1\x81\xe8\xee\xdc\x85\xe2\xaf\x85\x01".as_slice()),
+            "Go Varint",
+        ),
+        -4805274930070225009,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe9\xd8\xd8\xbd\xa0\x9b\xc0\xd0\x76".as_slice()),
+            "Go Uvarint",
+        ),
+        8548114504158162025,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe9\xd8\xd8\xbd\xa0\x9b\xc0\xd0\x76".as_slice()),
+            "Go Varint",
+        ),
+        -4274057252079081013,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9c\xb8\xc0\x8b\xf7\xdc\xa5\xd1\x10".as_slice()),
+            "Go Uvarint",
+        ),
+        1198686371618757660,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9c\xb8\xc0\x8b\xf7\xdc\xa5\xd1\x10".as_slice()),
+            "Go Varint",
+        ),
+        599343185809378830,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xdc\xdb\x88\xd6\xb5\x8b\x9d\xd9\x39".as_slice()),
+            "Go Uvarint",
+        ),
+        4157513341729910236,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xdc\xdb\x88\xd6\xb5\x8b\x9d\xd9\x39".as_slice()),
+            "Go Varint",
+        ),
+        2078756670864955118,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe1\xd3\xc0\xf3\xf5\xe4\xcf\x82\x1b".as_slice()),
+            "Go Uvarint",
+        ),
+        1947031852228291041,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe1\xd3\xc0\xf3\xf5\xe4\xcf\x82\x1b".as_slice()),
+            "Go Varint",
+        ),
+        -973515926114145521,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc9\xc7\x98\x91\xe8\xf1\xca\x82\x2f".as_slice()),
+            "Go Uvarint",
+        ),
+        3388162185735054281,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc9\xc7\x98\x91\xe8\xf1\xca\x82\x2f".as_slice()),
+            "Go Varint",
+        ),
+        -1694081092867527141,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xee\xf0\xdc\xa8\xe6\x91\xc4\xb0\xdc\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15879991964852500590,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xee\xf0\xdc\xa8\xe6\x91\xc4\xb0\xdc\x01".as_slice()),
+            "Go Varint",
+        ),
+        7939995982426250295,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc9\x92\x9e\xea\xbf\x9e\xd1\xa0\xf2\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17456309445381818697,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc9\x92\x9e\xea\xbf\x9e\xd1\xa0\xf2\x01".as_slice()),
+            "Go Varint",
+        ),
+        -8728154722690909349,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x8e\xa8\x87\xb6\xa1\xe0\x8f\xd4\xff\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        18422043553963299854,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x8e\xa8\x87\xb6\xa1\xe0\x8f\xd4\xff\x01".as_slice()),
+            "Go Varint",
+        ),
+        9211021776981649927,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe3\xaf\xad\xfb\xd6\xfd\xc9\xff\x88\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9871652808949454819,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe3\xaf\xad\xfb\xd6\xfd\xc9\xff\x88\x01".as_slice()),
+            "Go Varint",
+        ),
+        -4935826404474727410,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x89\xe9\xe9\x85\xac\xb9\xbf\xcd\xfc\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        18202139891229947017,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x89\xe9\xe9\x85\xac\xb9\xbf\xcd\xfc\x01".as_slice()),
+            "Go Varint",
+        ),
+        -9101069945614973509,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd0\xad\xc9\x8c\xeb\xa6\xc6\xf3\x77".as_slice()),
+            "Go Uvarint",
+        ),
+        8639902132831672016,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd0\xad\xc9\x8c\xeb\xa6\xc6\xf3\x77".as_slice()),
+            "Go Varint",
+        ),
+        4319951066415836008,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb8\xac\xb6\xea\xff\xd8\xe7\xc6\x6d".as_slice()),
+            "Go Uvarint",
+        ),
+        7894140303635748408,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb8\xac\xb6\xea\xff\xd8\xe7\xc6\x6d".as_slice()),
+            "Go Varint",
+        ),
+        3947070151817874204,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd3\x86\xcd\xb3\xc6\xa3\xbf\xb3\x93\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10621455069619635027,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd3\x86\xcd\xb3\xc6\xa3\xbf\xb3\x93\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5310727534809817514,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd7\x9f\xb1\xf7\xb1\xa3\xe2\xa4\x50".as_slice()),
+            "Go Uvarint",
+        ),
+        5785305945910038487,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd7\x9f\xb1\xf7\xb1\xa3\xe2\xa4\x50".as_slice()),
+            "Go Varint",
+        ),
+        -2892652972955019244,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9a\xee\x8e\xf1\xb6\xa9\xdd\x90\xdf\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        16078261111520212762,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9a\xee\x8e\xf1\xb6\xa9\xdd\x90\xdf\x01".as_slice()),
+            "Go Varint",
+        ),
+        8039130555760106381,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe2\xa0\xbe\xde\xb2\xdd\xd0\xe1\xe0\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        16195862262774206562,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe2\xa0\xbe\xde\xb2\xdd\xd0\xe1\xe0\x01".as_slice()),
+            "Go Varint",
+        ),
+        8097931131387103281,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xca\xcf\xc8\xa9\x88\xac\xbc\xd5\x20".as_slice()),
+            "Go Uvarint",
+        ),
+        2353959152108316618,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xca\xcf\xc8\xa9\x88\xac\xbc\xd5\x20".as_slice()),
+            "Go Varint",
+        ),
+        1176979576054158309,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc0\xcf\xb9\xb6\x8a\xfd\xaf\xa3\x07".as_slice()),
+            "Go Uvarint",
+        ),
+        524317412587104192,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc0\xcf\xb9\xb6\x8a\xfd\xaf\xa3\x07".as_slice()),
+            "Go Varint",
+        ),
+        262158706293552096,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd4\xd7\xae\xb1\x84\x90\x90\x96\xda\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15721011318920817620,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd4\xd7\xae\xb1\x84\x90\x90\x96\xda\x01".as_slice()),
+            "Go Varint",
+        ),
+        7860505659460408810,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xdf\xe4\x8a\xf4\x80\xb1\x97\x99\xc9\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        14497752989399429727,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xdf\xe4\x8a\xf4\x80\xb1\x97\x99\xc9\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7248876494699714864,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe0\xe2\xfb\xbe\xa9\xf0\xa0\xea\x6a".as_slice()),
+            "Go Uvarint",
+        ),
+        7697922259999977824,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe0\xe2\xfb\xbe\xa9\xf0\xa0\xea\x6a".as_slice()),
+            "Go Varint",
+        ),
+        3848961129999988912,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xa0\xb5\xda\xc9\xcf\x8d\x88\xca\x45".as_slice()),
+            "Go Uvarint",
+        ),
+        5013667937579866784,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xa0\xb5\xda\xc9\xcf\x8d\x88\xca\x45".as_slice()),
+            "Go Varint",
+        ),
+        2506833968789933392,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x97\x8c\x8d\xef\xde\xc9\xa9\xa3\x47".as_slice()),
+            "Go Uvarint",
+        ),
+        5135975278696416791,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x97\x8c\x8d\xef\xde\xc9\xa9\xa3\x47".as_slice()),
+            "Go Varint",
+        ),
+        -2567987639348208396,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xa9\xdd\xae\xfc\xf4\x94\xad\xfe\x64".as_slice()),
+            "Go Uvarint",
+        ),
+        7276889728610971305,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xa9\xdd\xae\xfc\xf4\x94\xad\xfe\x64".as_slice()),
+            "Go Varint",
+        ),
+        -3638444864305485653,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xba\xc0\xe8\xd5\xaf\xa3\xdd\xf6\x97\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10947535027943645242,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xba\xc0\xe8\xd5\xaf\xa3\xdd\xf6\x97\x01".as_slice()),
+            "Go Varint",
+        ),
+        5473767513971822621,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb2\xf4\x99\xc4\x8b\xf6\xb0\xcd\x16".as_slice()),
+            "Go Uvarint",
+        ),
+        1628829379025336882,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb2\xf4\x99\xc4\x8b\xf6\xb0\xcd\x16".as_slice()),
+            "Go Varint",
+        ),
+        814414689512668441,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xf1\x9f\xcb\x9e\xdb\xd6\xc4\x8c\xf8\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17877340767439212529,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xf1\x9f\xcb\x9e\xdb\xd6\xc4\x8c\xf8\x01".as_slice()),
+            "Go Varint",
+        ),
+        -8938670383719606265,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xea\xf3\xcd\xd2\xf3\x97\xd1\xc6\x65".as_slice()),
+            "Go Uvarint",
+        ),
+        7317580557654915562,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xea\xf3\xcd\xd2\xf3\x97\xd1\xc6\x65".as_slice()),
+            "Go Varint",
+        ),
+        3658790278827457781,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xac\x8e\xf5\x94\x83\xac\xdd\x99\x44".as_slice()),
+            "Go Uvarint",
+        ),
+        4914400674417821484,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xac\x8e\xf5\x94\x83\xac\xdd\x99\x44".as_slice()),
+            "Go Varint",
+        ),
+        2457200337208910742,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x90\xb3\xd1\xc0\xcc\x99\x87\xf8\x1d".as_slice()),
+            "Go Uvarint",
+        ),
+        2157255887366150544,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x90\xb3\xd1\xc0\xcc\x99\x87\xf8\x1d".as_slice()),
+            "Go Varint",
+        ),
+        1078627943683075272,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9d\xc7\xfa\xf4\xa0\xb2\xa7\x81\xba\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        13403448691644081053,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9d\xc7\xfa\xf4\xa0\xb2\xa7\x81\xba\x01".as_slice()),
+            "Go Varint",
+        ),
+        -6701724345822040527,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xca\xf8\xf2\x8d\x9b\xad\xce\xbd\x24".as_slice()),
+            "Go Uvarint",
+        ),
+        2628757933617101898,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xca\xf8\xf2\x8d\x9b\xad\xce\xbd\x24".as_slice()),
+            "Go Varint",
+        ),
+        1314378966808550949,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb7\xe9\x9c\xff\xae\xc1\xdb\x80\x85\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9584062475274761399,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb7\xe9\x9c\xff\xae\xc1\xdb\x80\x85\x01".as_slice()),
+            "Go Varint",
+        ),
+        -4792031237637380700,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xf1\x8b\xb6\xda\xfe\x8b\xb9\x92\x21".as_slice()),
+            "Go Uvarint",
+        ),
+        2388284803033957873,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xf1\x8b\xb6\xda\xfe\x8b\xb9\x92\x21".as_slice()),
+            "Go Varint",
+        ),
+        -1194142401516978937,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfe\xef\xb3\x8d\x82\xa1\xe4\xfa\x74".as_slice()),
+            "Go Uvarint",
+        ),
+        8427801741804500990,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfe\xef\xb3\x8d\x82\xa1\xe4\xfa\x74".as_slice()),
+            "Go Varint",
+        ),
+        4213900870902250495,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x97\xbd\xa5\xd1\xa2\x94\xae\xd5\xd7\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15540436470826884759,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x97\xbd\xa5\xd1\xa2\x94\xae\xd5\xd7\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7770218235413442380,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x84\xf8\x85\xeb\xbc\xf6\xcc\xb9\x95\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10769007981310868484,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x84\xf8\x85\xeb\xbc\xf6\xcc\xb9\x95\x01".as_slice()),
+            "Go Varint",
+        ),
+        5384503990655434242,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xeb\xcf\xb3\xb9\x82\x94\xa6\xe0\x5c".as_slice()),
+            "Go Uvarint",
+        ),
+        6683509660637259755,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xeb\xcf\xb3\xb9\x82\x94\xa6\xe0\x5c".as_slice()),
+            "Go Varint",
+        ),
+        -3341754830318629878,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xa1\xae\xea\xb6\xfe\xd6\xcc\xe1\x07".as_slice()),
+            "Go Uvarint",
+        ),
+        559346544157562657,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xa1\xae\xea\xb6\xfe\xd6\xcc\xe1\x07".as_slice()),
+            "Go Varint",
+        ),
+        -279673272078781329,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd1\xbe\x9b\xfb\xf8\xd0\x93\x96\x26".as_slice()),
+            "Go Uvarint",
+        ),
+        2750659816549965649,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd1\xbe\x9b\xfb\xf8\xd0\x93\x96\x26".as_slice()),
+            "Go Varint",
+        ),
+        -1375329908274982825,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9f\xb9\x80\xe7\x89\x95\xd8\x8b\xa7\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        12040198406101015711,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9f\xb9\x80\xe7\x89\x95\xd8\x8b\xa7\x01".as_slice()),
+            "Go Varint",
+        ),
+        -6020099203050507856,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe7\xc5\xdf\xc0\x84\xe6\x8f\xfa\x49".as_slice()),
+            "Go Uvarint",
+        ),
+        5328953735686644455,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe7\xc5\xdf\xc0\x84\xe6\x8f\xfa\x49".as_slice()),
+            "Go Varint",
+        ),
+        -2664476867843322228,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9c\xb6\x8c\x89\xce\x83\xd2\xf6\x72".as_slice()),
+            "Go Uvarint",
+        ),
+        8281354578677668636,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9c\xb6\x8c\x89\xce\x83\xd2\xf6\x72".as_slice()),
+            "Go Varint",
+        ),
+        4140677289338834318,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x97\xa6\xf5\xc4\xf6\xcb\x9d\xf9\xee\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17217954477539939095,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x97\xa6\xf5\xc4\xf6\xcb\x9d\xf9\xee\x01".as_slice()),
+            "Go Varint",
+        ),
+        -8608977238769969548,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xa7\xb1\xf2\xa5\xe6\xdb\xc3\xae\x20".as_slice()),
+            "Go Uvarint",
+        ),
+        2332036530383394983,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xa7\xb1\xf2\xa5\xe6\xdb\xc3\xae\x20".as_slice()),
+            "Go Varint",
+        ),
+        -1166018265191697492,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb2\x8d\xae\xd2\xb2\xda\xb0\xb6\xd9\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15667111415918593714,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb2\x8d\xae\xd2\xb2\xda\xb0\xb6\xd9\x01".as_slice()),
+            "Go Varint",
+        ),
+        7833555707959296857,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe6\xf1\x8c\x91\xe4\xce\xd6\x89\x3a".as_slice()),
+            "Go Uvarint",
+        ),
+        4184787942719568102,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe6\xf1\x8c\x91\xe4\xce\xd6\x89\x3a".as_slice()),
+            "Go Varint",
+        ),
+        2092393971359784051,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd6\xad\x96\xef\xf2\x9e\x98\xfb\xf1\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17435229622154663638,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd6\xad\x96\xef\xf2\x9e\x98\xfb\xf1\x01".as_slice()),
+            "Go Varint",
+        ),
+        8717614811077331819,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc3\x8d\xf9\xca\x82\x94\xb7\xd2\xd1\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15106441630554408643,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc3\x8d\xf9\xca\x82\x94\xb7\xd2\xd1\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7553220815277204322,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xea\x86\x83\xad\x8d\xee\xc4\x9d\x45".as_slice()),
+            "Go Uvarint",
+        ),
+        4988602387584303978,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xea\x86\x83\xad\x8d\xee\xc4\x9d\x45".as_slice()),
+            "Go Varint",
+        ),
+        2494301193792151989,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc2\xab\xc4\xab\xdf\xde\x92\xb2\xb9\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        13358884814933005762,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc2\xab\xc4\xab\xdf\xde\x92\xb2\xb9\x01".as_slice()),
+            "Go Varint",
+        ),
+        6679442407466502881,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb1\x8a\xc4\xfa\x83\xdb\xd0\xcd\x8c\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10131765283242706225,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb1\x8a\xc4\xfa\x83\xdb\xd0\xcd\x8c\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5065882641621353113,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x99\x94\x85\xd7\xfb\xd3\xca\xc1\x3d".as_slice()),
+            "Go Uvarint",
+        ),
+        4432433323786193433,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x99\x94\x85\xd7\xfb\xd3\xca\xc1\x3d".as_slice()),
+            "Go Varint",
+        ),
+        -2216216661893096717,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x86\xdd\xca\x9b\xeb\xec\x87\xf4\x6f".as_slice()),
+            "Go Uvarint",
+        ),
+        8063729658764635782,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x86\xdd\xca\x9b\xeb\xec\x87\xf4\x6f".as_slice()),
+            "Go Varint",
+        ),
+        4031864829382317891,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xac\xd4\x98\xee\xf4\xd7\xd1\x8a\xf5\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17660099301260798508,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xac\xd4\x98\xee\xf4\xd7\xd1\x8a\xf5\x01".as_slice()),
+            "Go Varint",
+        ),
+        8830049650630399254,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x98\xc8\x88\x87\xb3\xca\xc4\xb1\x7b".as_slice()),
+            "Go Uvarint",
+        ),
+        8890970237871203352,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x98\xc8\x88\x87\xb3\xca\xc4\xb1\x7b".as_slice()),
+            "Go Varint",
+        ),
+        4445485118935601676,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfc\xb2\x8a\xc6\xdb\xaf\x9b\xf8\xa2\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        11741004615292983676,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfc\xb2\x8a\xc6\xdb\xaf\x9b\xf8\xa2\x01".as_slice()),
+            "Go Varint",
+        ),
+        5870502307646491838,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xdd\xbd\xc9\x9f\xf8\xac\xc6\x83\xde\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15998784133643001565,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xdd\xbd\xc9\x9f\xf8\xac\xc6\x83\xde\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7999392066821500783,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xad\xce\xbd\x89\xa6\x9f\xa8\xdf\x38".as_slice()),
+            "Go Uvarint",
+        ),
+        4088882508931753773,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xad\xce\xbd\x89\xa6\x9f\xa8\xdf\x38".as_slice()),
+            "Go Varint",
+        ),
+        -2044441254465876887,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x86\xe9\xdf\x92\xe9\xe3\xb0\xbe\x5a".as_slice()),
+            "Go Uvarint",
+        ),
+        6520300896597308550,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x86\xe9\xdf\x92\xe9\xe3\xb0\xbe\x5a".as_slice()),
+            "Go Varint",
+        ),
+        3260150448298654275,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x8e\x8c\xb1\x80\xff\xfa\x80\xe8\xe8\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        16775912837935285774,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x8e\x8c\xb1\x80\xff\xfa\x80\xe8\xe8\x01".as_slice()),
+            "Go Varint",
+        ),
+        8387956418967642887,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfd\x8a\xd7\xb7\xa6\xa3\xd1\x80\x94\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10664881372288894333,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfd\x8a\xd7\xb7\xa6\xa3\xd1\x80\x94\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5332440686144447167,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb3\x80\xe9\x8c\xb7\xc5\x9a\xb3\x9b\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        11197754258325389363,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb3\x80\xe9\x8c\xb7\xc5\x9a\xb3\x9b\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5598877129162694682,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xab\xaf\xeb\xad\xa6\x84\x93\xd1\xe5\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        16546871691531966379,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xab\xaf\xeb\xad\xa6\x84\x93\xd1\xe5\x01".as_slice()),
+            "Go Varint",
+        ),
+        -8273435845765983190,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe9\xf0\xe5\xae\xea\xd9\x98\xff\xa2\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        11744933517914110057,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe9\xf0\xe5\xae\xea\xd9\x98\xff\xa2\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5872466758957055029,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb1\xb5\x8c\xfc\xe8\xc2\x98\x97\x7f".as_slice()),
+            "Go Uvarint",
+        ),
+        9164370140782074545,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb1\xb5\x8c\xfc\xe8\xc2\x98\x97\x7f".as_slice()),
+            "Go Varint",
+        ),
+        -4582185070391037273,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb5\x99\xb9\xf7\xf3\xac\x95\x91\x6d".as_slice()),
+            "Go Uvarint",
+        ),
+        7863941801268104373,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb5\x99\xb9\xf7\xf3\xac\x95\x91\x6d".as_slice()),
+            "Go Varint",
+        ),
+        -3931970900634052187,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9c\xb1\xf0\xc9\xb1\xa6\xaa\x8b\x99\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        11031190374222403740,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9c\xb1\xf0\xc9\xb1\xa6\xaa\x8b\x99\x01".as_slice()),
+            "Go Varint",
+        ),
+        5515595187111201870,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd8\xbc\xe1\xd8\xf3\xb6\xc2\x8c\x56".as_slice()),
+            "Go Uvarint",
+        ),
+        6204000644254686808,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd8\xbc\xe1\xd8\xf3\xb6\xc2\x8c\x56".as_slice()),
+            "Go Varint",
+        ),
+        3102000322127343404,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xad\xe0\x9a\xc7\xfc\xba\xc2\xdc\xc3\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        14103314530480599085,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xad\xe0\x9a\xc7\xfc\xba\xc2\xdc\xc3\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7051657265240299543,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd7\xf1\xec\xc9\xc9\xa7\xda\xa4\x2a".as_slice()),
+            "Go Uvarint",
+        ),
+        3047082331882600663,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd7\xf1\xec\xc9\xc9\xa7\xda\xa4\x2a".as_slice()),
+            "Go Varint",
+        ),
+        -1523541165941300332,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x99\x8b\xc1\x85\xfb\xf9\xb8\xee\xf9\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        18004515891482477977,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x99\x8b\xc1\x85\xfb\xf9\xb8\xee\xf9\x01".as_slice()),
+            "Go Varint",
+        ),
+        -9002257945741238989,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xae\x82\xf3\xb7\x89\xe2\xb5\xf7\xb4\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        13037594437536760110,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xae\x82\xf3\xb7\x89\xe2\xb5\xf7\xb4\x01".as_slice()),
+            "Go Varint",
+        ),
+        6518797218768380055,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xb1\xbb\xa6\xb0\xa1\x94\xdd\x91\xca\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        14565613859349568945,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xb1\xbb\xa6\xb0\xa1\x94\xdd\x91\xca\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7282806929674784473,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc2\xbd\x92\xfa\xe2\xa1\x8c\xe1\x81\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9350089713366900418,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc2\xbd\x92\xfa\xe2\xa1\x8c\xe1\x81\x01".as_slice()),
+            "Go Varint",
+        ),
+        4675044856683450209,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc9\xa7\xd9\x84\x86\xfe\xd7\xd9\x7d".as_slice()),
+            "Go Uvarint",
+        ),
+        9057688761589453769,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc9\xa7\xd9\x84\x86\xfe\xd7\xd9\x7d".as_slice()),
+            "Go Varint",
+        ),
+        -4528844380794726885,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfe\x8a\xb5\xde\x81\x9e\xaf\xfe\xab\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        12392988014061372798,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfe\x8a\xb5\xde\x81\x9e\xaf\xfe\xab\x01".as_slice()),
+            "Go Varint",
+        ),
+        6196494007030686399,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9a\xe8\xb0\x9b\xf4\xa9\xc4\xe7\x91\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10506635487809909786,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9a\xe8\xb0\x9b\xf4\xa9\xc4\xe7\x91\x01".as_slice()),
+            "Go Varint",
+        ),
+        5253317743904954893,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x80\x82\xbd\xb3\xea\xa2\xe5\xdc\xf5\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17706347334497943808,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x80\x82\xbd\xb3\xea\xa2\xe5\xdc\xf5\x01".as_slice()),
+            "Go Varint",
+        ),
+        8853173667248971904,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xa0\xdc\xa0\xb3\xa3\x87\x87\xbc\xf5\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17687918572844101152,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xa0\xdc\xa0\xb3\xa3\x87\x87\xbc\xf5\x01".as_slice()),
+            "Go Varint",
+        ),
+        8843959286422050576,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xff\x8e\x91\x84\xee\xb5\xf6\xe3\x43".as_slice()),
+            "Go Uvarint",
+        ),
+        4884111666020894591,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xff\x8e\x91\x84\xee\xb5\xf6\xe3\x43".as_slice()),
+            "Go Varint",
+        ),
+        -2442055833010447296,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x85\xc9\xe1\xf0\xb4\xe2\x87\x8f\x2a".as_slice()),
+            "Go Uvarint",
+        ),
+        3034897366669354117,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x85\xc9\xe1\xf0\xb4\xe2\x87\x8f\x2a".as_slice()),
+            "Go Varint",
+        ),
+        -1517448683334677059,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfc\x82\xfe\xe8\x8b\xf1\x96\xe6\x5e".as_slice()),
+            "Go Uvarint",
+        ),
+        6830935377660838268,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfc\x82\xfe\xe8\x8b\xf1\x96\xe6\x5e".as_slice()),
+            "Go Varint",
+        ),
+        3415467688830419134,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe7\xe8\xa0\x9f\xf9\x87\x8f\xd9\xd1\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15110205943543510119,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe7\xe8\xa0\x9f\xf9\x87\x8f\xd9\xd1\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7555102971771755060,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xf2\xbb\xc9\xca\x8f\xff\xb1\xaa\xaf\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        12633942726829825522,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xf2\xbb\xc9\xca\x8f\xff\xb1\xaa\xaf\x01".as_slice()),
+            "Go Varint",
+        ),
+        6316971363414912761,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfa\xae\x87\xb7\xfd\x84\xe3\xcf\x53".as_slice()),
+            "Go Uvarint",
+        ),
+        6025688929181751162,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfa\xae\x87\xb7\xfd\x84\xe3\xcf\x53".as_slice()),
+            "Go Varint",
+        ),
+        3012844464590875581,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xfc\x8e\xbe\xa1\xf8\xa1\xa7\xca\x93\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10634297310096361340,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xfc\x8e\xbe\xa1\xf8\xa1\xa7\xca\x93\x01".as_slice()),
+            "Go Varint",
+        ),
+        5317148655048180670,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xd9\xfb\xb7\xf7\xba\xf2\xb6\x92\x20".as_slice()),
+            "Go Uvarint",
+        ),
+        2316217535716785625,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xd9\xfb\xb7\xf7\xba\xf2\xb6\x92\x20".as_slice()),
+            "Go Varint",
+        ),
+        -1158108767858392813,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x95\xe3\xbd\xc4\xb5\x81\xe3\xc7\xe9\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        16829824312865157525,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x95\xe3\xbd\xc4\xb5\x81\xe3\xc7\xe9\x01".as_slice()),
+            "Go Varint",
+        ),
+        -8414912156432578763,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xab\xd8\x9b\xd6\xea\xee\xb0\xd8\xde\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        16046540386759797803,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xab\xd8\x9b\xd6\xea\xee\xb0\xd8\xde\x01".as_slice()),
+            "Go Varint",
+        ),
+        -8023270193379898902,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xf9\x91\xbd\xf5\x9b\xec\xc9\xd2\x29".as_slice()),
+            "Go Uvarint",
+        ),
+        3000848027476773113,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xf9\x91\xbd\xf5\x9b\xec\xc9\xd2\x29".as_slice()),
+            "Go Varint",
+        ),
+        -1500424013738386557,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xcf\xab\xaf\x8b\xbc\x83\x8f\x97\x80\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9236385975690319311,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xcf\xab\xaf\x8b\xbc\x83\x8f\x97\x80\x01".as_slice()),
+            "Go Varint",
+        ),
+        -4618192987845159656,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xa8\xef\x84\xb5\x9c\x8d\xaa\x91\x8e\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10241933674851415976,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xa8\xef\x84\xb5\x9c\x8d\xaa\x91\x8e\x01".as_slice()),
+            "Go Varint",
+        ),
+        5120966837425707988,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xf7\xd1\x91\xe3\xae\x85\xf8\xe6\xeb\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        16991483444098001143,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xf7\xd1\x91\xe3\xae\x85\xf8\xe6\xeb\x01".as_slice()),
+            "Go Varint",
+        ),
+        -8495741722049000572,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xeb\xfa\xff\x8e\x92\x96\x85\xa2\x97\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        10899859749153537387,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xeb\xfa\xff\x8e\x92\x96\x85\xa2\x97\x01".as_slice()),
+            "Go Varint",
+        ),
+        -5449929874576768694,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xf4\xfe\xce\xe6\xa7\xda\xc1\xda\x0a".as_slice()),
+            "Go Uvarint",
+        ),
+        771530412271058804,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xf4\xfe\xce\xe6\xa7\xda\xc1\xda\x0a".as_slice()),
+            "Go Varint",
+        ),
+        385765206135529402,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x9a\x9c\x97\xd0\xe0\xb6\x86\xcf\xf3\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        17554496667179666970,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x9a\x9c\x97\xd0\xe0\xb6\x86\xcf\xf3\x01".as_slice()),
+            "Go Varint",
+        ),
+        8777248333589833485,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xc7\xe7\xda\xb4\x8d\xa3\xbf\xf0\xd7\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        15555711396058936263,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xc7\xe7\xda\xb4\x8d\xa3\xbf\xf0\xd7\x01".as_slice()),
+            "Go Varint",
+        ),
+        -7777855698029468132,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xe1\xc5\xe6\xd4\xf9\xad\xcf\xcf\x1b".as_slice()),
+            "Go Uvarint",
+        ),
+        1990377109865472737,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xe1\xc5\xe6\xd4\xf9\xad\xcf\xcf\x1b".as_slice()),
+            "Go Varint",
+        ),
+        -995188554932736369,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\x8b\xf5\xe1\xa5\xf1\xd3\x9c\xef\xfe\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        18365242358036462219,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\x8b\xf5\xe1\xa5\xf1\xd3\x9c\xef\xfe\x01".as_slice()),
+            "Go Varint",
+        ),
+        -9182621179018231110,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xba\xb9\xb1\xa3\xdd\xbf\xd3\x9c\x88\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        9815962615416642746,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xba\xb9\xb1\xa3\xdd\xbf\xd3\x9c\x88\x01".as_slice()),
+            "Go Varint",
+        ),
+        4907981307708321373,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::uleb128().parse(b"\xac\xa4\xd2\x95\xab\x83\xb2\x89\xb7\x01".as_slice()),
+            "Go Uvarint",
+        ),
+        13191826275514487340,
+    );
+    testing::assert_eq(
+        testing::expect_ok(
+            binary::zigzag64().parse(b"\xac\xa4\xd2\x95\xab\x83\xb2\x89\xb7\x01".as_slice()),
+            "Go Varint",
+        ),
+        6595913137757243670,
+    );
+}

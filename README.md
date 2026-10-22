@@ -268,3 +268,13 @@ goml test
 ```
 
 `goml test` builds the example and runs its tests. `(cd ../workflows && just ecosystem-test parser)` also retains the library-specific smoke and compatibility checks.
+
+Binary `uleb128()` decodes unsigned 64-bit, seven-bit continuation integers;
+`zigzag64()` decodes the same wire format using signed ZigZag (not SLEB128).
+Both accept nonminimal encodings, matching Go `encoding/binary`, but reject a
+10th byte above 1 (including continuation) as `Invalid`. Missing bytes produce
+`Incomplete` at the absolute next offset. Each inspected byte consumes shared
+parser work budget in addition to normal parser entry costs. No input is
+consumed outside the returned successful offset. The Go 1.26 reference vectors
+(boundaries and 128 deterministic random values) can be regenerated with
+`go run tools/varint_vectors.go` from this directory.
